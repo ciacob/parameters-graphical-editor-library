@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         paddingTop="{Sizes.LARGE_GAP}" paddingRight="{Sizes.LARGE_GAP}" paddingBottom="{Sizes.LARGE_GAP}"
+         paddingLeft="{Sizes.LARGE_GAP}"
+         backgroundColor="{Colors.CHROME_COLOR}"
+         borderStyle="solid" borderColor="{Colors.BORDER_COLOR_DARKER}"
+         top="{Sizes.MEDIUM_GAP}" right="{Sizes.MEDIUM_GAP}" bottom="{Sizes.MEDIUM_GAP}" left="{Sizes.MEDIUM_GAP}"
+         filters="{Filters.COMMON_POPUP_SHADOW}"
+         preinitialize="_onPreinitialize (event)"
+         initialize="_onInitialize(event)">
+
+    <fx:Script>
+		<![CDATA[
+        import eu.claudius.iacob.maidens.Filters;
+        import eu.claudius.iacob.maidens.Sizes;
+
+        import flash.filters.DropShadowFilter;
+        import flash.utils.setTimeout;
+
+        import eu.claudius.iacob.maidens.Colors;
+
+        import mx.collections.ArrayCollection;
+        import mx.events.CloseEvent;
+        import mx.events.FlexEvent;
+        import mx.events.FlexMouseEvent;
+        import mx.managers.PopUpManager;
+        import mx.utils.ObjectProxy;
+
+        import spark.components.supportClasses.ItemRenderer;
+
+        /**
+         *
+         */
+        [Bindable]
+        public function set parentDataItem(value:ObjectProxy):void {
+            _parentDataItem = value;
+            colorsDataset = new ArrayCollection(COLORS.map(_augmentColors));
+        }
+
+        public function get parentDataItem():ObjectProxy {
+            return _parentDataItem;
+        }
+
+        // Original data source
+        private static const COLORS:Array = [
+            0xe6194B, 0x3cb44b, 0xffe119, 0x4363d8, 0xf58231,
+            0x911eb4, 0x42d4f4, 0xf032e6, 0xbfef45, 0xfabebe,
+            0x469990, 0xe6beff, 0x9A6324, 0xfffac8, 0x800000,
+            0xaaffc3, 0x808000, 0xffd8b1, 0x000075, 0xa9a9a9
+        ];
+
+        // Converted data source
+        [Bindable]
+        private var colorsDataset:ArrayCollection;
+
+        // Storage for the dataset of the parent data item (the one this component
+        // works as an editor of)
+        private var _parentDataItem:ObjectProxy;
+
+        // Holds the augmented color information related to the last swatch that was
+        // selected
+        private var _selectedColorInfo:ObjectProxy;
+
+        /**
+         * Executes when this component is initialized, but before
+         * any of its children is initialized
+         */
+        private function _onPreinitialize(event:FlexEvent):void {
+        }
+
+        /**
+         * Wraps the bare color information in an Object that also tracks whether
+         * the color is currently "selected", i.e., it should display a border around
+         * its swatch.
+         */
+        private function _augmentColors(colorCode:uint, ...etc):ObjectProxy {
+            var selectedFlag:Boolean = (colorCode == _parentDataItem.color);
+            var colorInfo:ObjectProxy = new ObjectProxy({
+                color: colorCode,
+                isSelected: selectedFlag
+            })
+            if (selectedFlag) {
+                _selectedColorInfo = colorInfo;
+            }
+            return colorInfo;
+        }
+
+        /**
+         * Executes when user clicks one of the color swatches. Selects
+         * the clicked parameter and invalidates any previous selection.
+         */
+        protected function _onColorClicked(event:MouseEvent):void {
+            var renderer:ItemRenderer = event.target as ItemRenderer;
+            if (renderer && parentDataItem) {
+                var currentColorInfo:ObjectProxy = renderer.data as ObjectProxy;
+                currentColorInfo.isSelected = true;
+                var currentColor:uint = currentColorInfo.color;
+                parentDataItem.color = currentColor;
+                if (_selectedColorInfo != currentColorInfo) {
+                    if (_selectedColorInfo) {
+                        _selectedColorInfo.isSelected = false;
+                    }
+                    _selectedColorInfo = currentColorInfo;
+                    var payload:Object = {};
+                    payload[Constants.DATA_ITEM] = parentDataItem;
+                    dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.COLOR_CHANGE, payload));
+                }
+                setTimeout(dispatchEvent, 200, new CloseEvent(Event.CLOSE));
+            }
+        }
+
+        private function _onInitialize(event:FlexEvent):void {
+            this.addEventListener(FlexMouseEvent.MOUSE_DOWN_OUTSIDE, closePopUp);
+        }
+
+        private function closePopUp(event:FlexMouseEvent):void {
+            PopUpManager.removePopUp(this);
+        }
+        ]]>
+	</fx:Script>
+
+    <!-- Color Tiles -->
+    <s:DataGroup horizontalCenter="0" verticalCenter="0"
+                 dataProvider="{colorsDataset}" click="_onColorClicked (event)">
+        <s:layout>
+            <s:TileLayout horizontalAlign="justify" verticalAlign="justify"
+                          columnAlign="justifyUsingGap" rowAlign="justifyUsingGap"
+                          columnWidth="40" rowHeight="40"/>
+        </s:layout>
+        <s:itemRenderer>
+            <fx:Component>
+                <s:ItemRenderer autoDrawBackground="false" useHandCursor="true" buttonMode="true"
+                                selected="{data.isSelected}" toolTip="#{data.color.toString(16)}">
+
+                    <s:states>
+                        <mx:State name="normal"/>
+                        <mx:State name="hovered"/>
+                        <mx:State name="down"/>
+                        <mx:State name="selected"/>
+                        <mx:State name="downAndSelected"/>
+                    </s:states>
+
+                    <s:Group top="1" bottom="1" right="1" left="1" mouseEnabled="false">
+                        <s:Rect top="0" bottom="0" right="0" left="0">
+                            <s:stroke>
+                                <mx:SolidColorStroke weight="2"
+                                                     color="#ffffff"
+                                                     color.hovered="#0099FF"
+                                                     color.down="#0099FF"
+                                                     color.selected="#00CCFF"
+                                                     color.downAndSelected="#00CCFF"/>
+                            </s:stroke>
+                        </s:Rect>
+                        <s:Rect top="3" bottom="3" right="3" left="3">
+                            <s:fill>
+                                <mx:SolidColor color="{data.color}"/>
+                            </s:fill>
+                        </s:Rect>
+
+                    </s:Group>
+                </s:ItemRenderer>
+            </fx:Component>
+        </s:itemRenderer>
+    </s:DataGroup>
+
+</mx:VBox>

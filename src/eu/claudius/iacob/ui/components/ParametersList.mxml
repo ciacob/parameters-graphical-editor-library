@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="400"
+		 height="300"
+		 initialize="_onInitialize(event)">
+	
+	<fx:Metadata>
+		[Event(name="parameterChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+		[Event(name="swatchClick",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+		[Event(name="colorChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+		[Event(name="visibilityChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+		[Event(name="lockChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Label;
+			import mx.events.FlexEvent;
+			import mx.events.PropertyChangeEvent;
+			import mx.events.PropertyChangeEventKind;
+			import mx.utils.ObjectProxy;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			
+			// Style (main component)
+			[Bindable] public var padding : uint = 1;
+			[Bindable] public var contentPadding : uint = 10;
+			[Bindable] public var fillAlpha : Number = 1;
+			
+			// Style (list)
+			[Bindable] public var itemHeight : Number = 33;
+			[Bindable] public var listRightGutter : Number = 10;
+			[Bindable] public var listSwatchBorder : int = 2;
+			[Bindable] public var listLeftGutter : int = 10;
+			[Bindable] public var listTopGutter : int = 4;
+			[Bindable] public var listBottomGutter : int = 4;
+			[Bindable] public var listCellWidth : int = 35;
+			
+			
+			// The original dataset
+			public function set parameters (value : Array) : void {
+				_parameters = value;
+				_parametersCollection = new ArrayCollection (value.map (_augmentItem));
+			}
+			public function get parameters () : Array {
+				return _parameters;
+			}
+
+			/**
+			 * Holds the data source of this list in its unalterated form (the component
+			 * requires that it is converted to an ArrayList)
+			 */
+			private var _parameters : Array;			
+
+			// The converted dataset 
+			[Bindable] private var _parametersCollection : ArrayCollection;
+			
+			// The currently selected parameter data item
+			[Bindable] private var _selectedParam : ObjectProxy = null;
+			
+			/**
+			 * Used as a mapping function to "augment" the items, i.e., make styling information available to
+			 * the item renderer and ensure the selected item always stays in view.
+			 */
+			private function _augmentItem (item : Object, ...etc) : Object {
+				if (item is IEventDispatcher) {
+					(item as IEventDispatcher).addEventListener (PropertyChangeEvent.PROPERTY_CHANGE, _onItemPropertyChange);
+				}
+				item.contentPadding = contentPadding;
+				item.itemHeight = itemHeight;				
+				item.listRightGutter = listRightGutter;
+				item.listSwatchBorder = listSwatchBorder;
+				item.listLeftGutter = listLeftGutter;
+				item.listTopGutter = listTopGutter;
+				item.listBottomGutter = listBottomGutter;
+				item.listCellWidth = listCellWidth;
+				return item;
+			}
+			
+			/**
+			 * Executes when one of the properties of an item changes.
+			 */
+			private function _onItemPropertyChange (event : PropertyChangeEvent) : void {
+				if (event.kind == PropertyChangeEventKind.UPDATE &&
+					event.property == 'selected' &&
+					event.newValue == true) {
+					var selectedParameter : Object = event.target;
+					var selectedIndex : int = _parameters.indexOf (selectedParameter);
+					if (selectedIndex >= 0) {
+						setTimeout (function () : void {
+							listBody.selectedIndex = selectedIndex;
+							listBody.ensureIndexIsVisible (selectedIndex);
+						}, 0);
+					}
+				}
+			}
+			
+			/**
+			 * Executes when this component is initialized, but before children have been measured
+			 * and rendered
+			 */
+			private function _onInitialize (event : FlexEvent) : void {
+				listBody.addEventListener (ParameterChangeEvent.SWATCH_CLICK, _onSwatchClick);
+				listBody.addEventListener (ParameterChangeEvent.VISIBILITY_CHANGE, _onVisibilityChange);
+				listBody.addEventListener (ParameterChangeEvent.LOCK_CHANGE, _onLockStatusChange);
+			}
+			
+			/**
+			 * Executes when user clicks a Parameter item in the parameters list. Selects the
+			 * clicked parameter and invalidates any previous selection.
+			 */
+			private function _onParameterSelected (event : MouseEvent) : void {
+				var renderer : ItemRenderer = null;
+				var target : Object = event.target;
+				if (target is ItemRenderer) {
+					renderer = (target as ItemRenderer);
+				} else if (target is Label) {
+					renderer = ((target as Label).parent as ItemRenderer);	
+				}
+				if (renderer) {
+					var currentParam : ObjectProxy = renderer.data as ObjectProxy;
+					if (currentParam.visible && !currentParam.locked) {
+						currentParam.selected = true;
+						if (_selectedParam != currentParam) {
+							if (_selectedParam) {
+								_selectedParam.selected = false;
+							}
+							_selectedParam = currentParam;
+						}
+						var payload : Object = {};
+						payload[Constants.DATA_ITEM] = _selectedParam;
+						dispatchEvent (new ParameterChangeEvent (ParameterChangeEvent.PARAMETER_CHANGE, payload));					
+					}
+				}
+			}
+			
+			/**
+			 * Executed when user clicks the "color swatch" of a list item.
+			 * The event is forwarded to the parent component to be handled there.
+			 */
+			private function _onSwatchClick (event : ParameterChangeEvent) : void {
+				dispatchEvent (event);
+			}
+			
+			/**
+			 * Executed when user clicks the "visibility" button of a list item.
+			 * The event is forwarded to the parent component to be handled there.
+			 */
+			private function _onVisibilityChange (event : ParameterChangeEvent) : void {
+				dispatchEvent (event);
+			}
+
+			/**
+			 * Executed when user clicks the "lock" button of a list item.
+			 * The event is forwarded to the parent component to be handled there.
+			 */
+			private function _onLockStatusChange (event : ParameterChangeEvent) : void {
+				dispatchEvent (event);
+			}
+			
+			/**
+			 * Executed when user depresses a key with the list sub-component selected.
+			 * We do not want to enable list key navigation since it has flaws, so we 
+			 * disable it altogether.
+			 */
+			private function _disableMouseDown (event : MouseEvent) : void {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<!-- Background -->
+	<s:Rect id="bgFill"
+			left="0"
+			right="0"
+			top="0"
+			bottom="0">
+		<s:stroke>
+        	<mx:SolidColorStroke color="0xbfbfbf" weight="1"/>
+        </s:stroke>
+		<s:fill>
+			<mx:SolidColor color="#ffffff" alpha="0.5" />
+		</s:fill>
+	</s:Rect>
+
+	<!-- Scrollable list -->	
+	<s:List id="listBody" 
+			width="100%"
+			height="100%"
+			borderVisible="false"
+			contentBackgroundAlpha="0.001"
+			hasFocusableChildren="false"
+			itemRenderer="eu.claudius.iacob.ui.components.ParametersListItem" 
+			dataProvider="{_parametersCollection}" 
+			click="_onParameterSelected (event)"
+			mouseDown="_disableMouseDown (event)">
+		<s:layout>
+			<s:VerticalLayout horizontalAlign="justify" gap="{padding}" />
+		</s:layout>
+	</s:List>
+</s:Group>

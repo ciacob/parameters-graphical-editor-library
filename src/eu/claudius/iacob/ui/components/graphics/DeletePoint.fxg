@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Graphic version="1.0" viewHeight="6.73096" viewWidth="26.0684" xmlns="http://ns.adobe.com/fxg/2008">
+  <Library/>
+  <Group d:type="layer" d:userLabel="Layer 1" xmlns:d="http://ns.adobe.com/fxg/2008/dt">
+    <Path winding="nonZero" data="M1.80078 0L24.2666 0C26.6689 0 26.6689 6.73096 24.2666 6.73096L1.80078 6.73096C-0.600586 6.73096 -0.600586 0 1.80078 0Z" >
+      <fill>
+        <SolidColor color="#010101"/>
+      </fill>
+    </Path>
+  </Group>
+</Graphic>

@@ -1,0 +1,2600 @@
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 initialize="_onInitialize (event)">
+
+	<fx:Metadata>
+		[Event(name="parameterChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+		[Event(name="nodesChange",type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+	</fx:Metadata>
+
+	<fx:Script>
+		<![CDATA[
+		import eu.claudius.iacob.maidens.Sizes;
+		import eu.claudius.iacob.maidens.skins.FitView;
+		import eu.claudius.iacob.ui.components.Constants;
+		import eu.claudius.iacob.ui.components.ParameterChangeEvent;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_0;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_1;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_2;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_3;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_4;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_5;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_6;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_7;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_8;
+		import eu.claudius.iacob.ui.components.graphics.digits.digit_9;
+
+		import fl.motion.Color;
+
+		import flash.filters.DropShadowFilter;
+
+		import mx.controls.Menu;
+
+		import mx.core.IToolTip;
+		import mx.events.FlexEvent;
+		import mx.events.MenuEvent;
+		import mx.events.PropertyChangeEvent;
+		import mx.events.PropertyChangeEventKind;
+		import mx.managers.ToolTipManager;
+
+		import spark.core.SpriteVisualElement;
+
+
+		// Style
+		private const _backgroundColor:uint = 0xffffff;
+		private const _backgroundAlpha:Number = 0.5;
+		private const _borderThickness:uint = 1;
+		private const _borderColor:uint = 0x000000;
+		private const _gridlineThickness:uint = 1;
+		private const _gridlineColor:uint = 0xbfbfbf;
+		private const _axisColor:uint = 0x3f3f3f;
+		private const _labelFontSize:uint = 12;
+		private const _labelColor:uint = 0x000000;
+		private const _trackThickness:uint = 8;
+		private const _bottomGutter:uint = 25;
+		private const _leftGutter:uint = 35;
+		private const _viewControlsPadding:uint = 18;
+		private const _scrollbarThickness:uint = 16;
+		private const _sliderThickness:uint = 11;
+		private const _sliderLength:uint = 50;
+		private const _fitViewButtonSize:uint = Sizes.SECONDARY_UI_BUTTON_SIZE;
+		private const _selEnvelopeThickness:Number = 3.8;
+		private const _envelopeThickness:Number = 2.8;
+		private const _selEnvelopeAlpha:Number = 1;
+		private const _envelopeAlpha:Number = 0.75;
+		private const _envelopeLockedThickness:Number = 1.8;
+		private const _nodeSelectionColor:uint = 0xffffff;
+		private const _shadowColor:Number = 0x000000;
+		private const _shadowAlpha:Number = 0.55;
+		private const _lockedTint:Number = 0x000000;
+		private const _lockedTintWeight:Number = 0.3;
+		private const _selectedNodeRadius:Number = 6.2;
+		private const _nodeRadius:Number = 5.2;
+		private const _nodeLockedradius:Number = 4.2;
+
+
+		// ------------------
+		// GRID CONFIGURATION
+		// ------------------
+
+		// The thickness of a scrollbar control
+
+		// Maximum number of vertical lines (drawn along the X axis) for the grid.
+		// There are 99 columns defined by 100 lines, numbered from 1 to 100 including
+		// both ends.
+		private static const MAX_GRIDLINES_X:uint = 100;
+
+		// Maximum number of horizontal lines (drawn along the Y axis) for the grid.
+		// There are 99 rows defined by 100 lines, numbered from 1 to 100 including
+		// both ends.
+		private static const MAX_GRIDLINES_Y:uint = 100;
+
+		// Minimum number of vertical lines (drawn along the X axis) for the grid.
+		// There are 99 columns defined by 100 lines, numbered from 1 to 100 including
+		// both ends.
+		private static const MIN_GRIDLINES_X:uint = 1;
+
+		// Minimum number of horizontal lines (drawn along the Y axis) for the grid.
+		// There are 100 rows defined by 101 lines, numbered from 0 to 100 including
+		// both ends.
+		private static const MIN_GRIDLINES_Y:uint = 1;
+
+		// Nominal width of the char graphic used to draw label in the chart.
+		// The actual labels in the chart will be scaled based on the `_labelFontSize`.
+		private static const DIGIT_CHAR_WIDTH:Number = 38;
+
+		// Nominal height of the char graphic used to draw label in the chart.
+		// The actual labels in the chart will be scaled based on the `_labelFontSize`.
+		private static const DIGIT_CHAR_HEIGHT:Number = 48;
+
+		// The minimum percent of the grid, on both axes, that will be fitted to the
+		// viewport (in effect, this controls the maximum "zoom")
+		private static const MIN_VISIBLE_PERCENT:Number = 0.2;
+
+		// The maximum percent of the grid, on both axes, that will be fitted to the
+		// viewport (in effect, this controls the minimum "zoom")
+		private static const MAX_VISIBLE_PERCENT:Number = 1;
+
+		// The index of the grid vertical line to act as a reference. The grid will
+		// be drawn to the right and left of this line
+		// Default: 50
+		private var _gridXAxis:uint = 50;
+
+		// The index of the grid horizontal line to act as a reference. The grid will
+		// be drawn above and below of this line
+		// Default: 50
+		private var _gridYAxis:uint = 50;
+
+		// The placement, within the visible viewport, of the X axis, as a
+		// percent, e.g., `0.5` means the center of the viewport, `0` means to the
+		// left, `1` means to the right.
+		// Default: 0.5
+		private var _viewPortXAxisPosition:Number = 0.5;
+
+		// The placement, within the visible viewport, of the Y axis, as a
+		// percent, e.g., `0.5` means the middle of the viewport, `0` means to the
+		// top, `1` means to the bottom.
+		// Default: 0.5
+		private var _viewPortYAxisPosition:Number = 0.5;
+
+		// How much of the grid is to be fitted in the available space of thel
+		// viewport, horizontally
+		// Default: 1
+		private var _gridVisiblePercentX:Number = 1;
+
+		// How much of the grid is to be fitted in the available space of the
+		// viewport, vertically
+		// Default: 1
+		private var _gridVisiblePercentY:Number = 1;
+
+		// How many horizontal grid lines to be skipped when drawing the grid,
+		// e.g., a setting of `1` will draw every line, a setting of `2` will
+		// draw every other line, and so on.
+		// Default: 10
+		private var _drawNthXLine:uint = 1;
+
+		// How many vertical grid lines to be skipped when drawing the grid,
+		// e.g., a setting of `1` will draw every line, a setting of `2` will
+		// draw every other line, and so on.
+		// Default: 10
+		private var _drawNthYLine:uint = 1;
+
+		// The smallest size, on either direction, a grid cell is permitted to
+		// have. New grid lines will be skipped (i.e., not drawn) if they would cause
+		// grid cells to appear, that are smaller in size than this setting.
+		private var _gridCellMinSize:uint = 15;
+
+		// How many of the visible vertical grid lines to be skipped when drawing
+		// associated labels, e.g., a setting of `1` will draw a label for
+		// every visible line, a setting of `2` will draw a label for every other
+		// visible line, and so on.
+		// Default: 1
+		private var _drawNthXLabel:uint = 1;
+
+		// How many of the visible horizontal grid lines to be skipped when drawing
+		// associated labels, e.g., a setting of `1` will draw a label for
+		// every visible line, a setting of `2` will draw a label for every other
+		// visible line, and so on.
+		// Default: 1
+		private var _drawNthYLabel:uint = 1;
+
+		// How much white space to enforce around each plotted label, as a percent of
+		// that label's width and height. No other labels will be plotted in this
+		// reserved area, so this can be an effective way to ensure that labels don't
+		// overlap, not even when `_drawNth...Label` is set to `1`.
+		private var _labelPaddingPercent:Number = 1.5;
+
+		// Global contextual menu instance that we use in order to make sure that we
+		// only create one menu at a time
+		private var _popupMenu : Menu;
+
+		// Because this component shows floating, contextual menus, it needs to know how "big" the root container in the
+		// current window is. This is a somewhat costly query, so we cache the results.
+		private var _topContainerInThisWindow : DisplayObjectContainer;
+
+
+		// ------------
+		// PROGRAM DATA
+		// ------------
+
+		// "Reasons" for dispatching a "nodesChange" event. Used to minimize
+		// redundant broadcasts
+		private static const NODE_ADD:String = 'nodeAdd';
+		private static const DRAG_COMPLETE:String = 'dragComplete';
+		private static const NODES_DELETED:String = 'nodesDeleted';
+		private static const NODE_TOUCHED:String = 'nodeTouched_';
+		private static const NODES_UNSELECTED:String = 'nodesUnselected';
+		private static const NODE_RIGHT_CLICK:String = 'nodeRightClick';
+
+		// Number of milliseconds the current tooltip closes after when a "mouse out" condition occurs
+		private static const TOOLTIP_MOUSE_OUT_DELAY:int = 250;
+
+		// Menu command name for deleting selected nodes
+		private static const COMMAND_DELETE_SELECTED_NODES:String = 'commandDeleteSelectedNodes'
+
+		// Point to use as a source for cloning (and as an alternative to creating new
+		// instances in a loop, which might prove inefficient).
+		private const DEFAULT_POINT:Point = new Point;
+
+		// Holds class definitions of FXG components (vector images) for each numeric
+		// char to be used within the grid labels
+		private static const CHAR_VECTORS:Array = [
+			digit_0, digit_1, digit_2, digit_3, digit_4,
+			digit_5, digit_6, digit_7, digit_8, digit_9
+		];
+
+		// Holds one raster image for each of the ten digits, 0 to 9, used to draw
+		// the horizontal and vertical grid labels
+		private static const CHAR_RASTERS:Array = [];
+
+		private static const TOOLTIP_X_OFFSET:int = 15;
+		private static const TOOLTIP_Y_OFFSET:int = 15;
+
+		// Externally exposed value that controls the ammount of scalling to be acted
+		// upon the timeline (i.e., the horizontal span of the chart).
+		// Takes a Number between `0` and `1` inclusive, where `0` fits `MIN_VISIBLE_PERCENT`
+		// of the timeline into the viewport (maximum zoom), while `1` fits
+		// `MAX_VISIBLE_PERCENT` of the timeline into the viewport (minimum zoom).
+		[Bindable]
+		public function set timelineFactor(value:Number):void {
+			value = Math.max(0, Math.min(1, value));
+			if (_timelineFactor != value) {
+				_timelineFactor = value;
+				_updateMaxXScroll();
+				_updateGridXAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		public function get timelineFactor():Number {
+			return _timelineFactor;
+		}
+
+		// Externally exposed value that controls the ammount of scalling to be acted
+		// upon the amplitude scale (i.e., the vertical span of the chart).
+		// Takes a Number between `0` and `1` inclusive, where `0` fits `MIN_VISIBLE_PERCENT`
+		// of the amplitude scale into the viewport (maximum zoom), while `1` fits
+		// `MAX_VISIBLE_PERCENT` of the amplitude scale into the viewport (minimum zoom).
+		[Bindable]
+		public function set amplitudeFactor(value:Number):void {
+			value = Math.max(0, Math.min(1, value));
+			if (_amplitudeFactor != value) {
+				_amplitudeFactor = value;
+				_updateMaxYScroll();
+				_updateGridYAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		public function get amplitudeFactor():Number {
+			return _amplitudeFactor;
+		}
+
+		// Externally exposed value that controls the ammount of horizontal scrolling to
+		// be acted upon the timeline (i.e., the horizontal span of the chart).
+		// Takes a Number between `0` and `1` inclusive, where `0` means no scroll and `1`
+		// means fully scrolled to the right.
+		[Bindable]
+		public function set horizontalScrollFactor(value:Number):void {
+			value = Math.max(0, Math.min(1, value));
+			if (_horizontalScrollFactor != value) {
+				_horizontalScrollFactor = value;
+				_updateGridXAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		public function get horizontalScrollFactor():Number {
+			return _horizontalScrollFactor;
+		}
+
+		// Externally exposed value that controls the ammount of vertical scrolling to
+		// be acted upon the amplitude scale (i.e., the vertical span of the chart).
+		// Takes a Number between `0` and `1` inclusive, where `0` means no scroll and `1`
+		// means fully scrolled to the bottom.
+		[Bindable]
+		public function set verticalScrollFactor(value:Number):void {
+			value = Math.max(0, Math.min(1, value));
+			if (_verticalScrollFactor != value) {
+				_verticalScrollFactor = value;
+				_updateGridYAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		public function get verticalScrollFactor():Number {
+			return _verticalScrollFactor;
+		}
+
+		// Externally exposed data provider. Expects an Array of Objects, where each
+		// Object describes one envelope to be drawn and made available for editing.
+		// Each Object should include these properties:
+		//
+		// - name: String, the name of the envelope;
+		//
+		// - color: unsigned RGB integer, color to draw the envelope in;
+		//
+		// - visible: Boolean, whether to draw the envelope;
+		//
+		// - locked: Boolean, if `true`, the envelope shall not be editable;
+		//
+		// - values: sparse Array of at most 100 unsigned integers, describing one
+		// 	 or more points of the envelope; each Array index represents one point's
+		//	 placement on the timeline (horizontal axis) and the corresponding value
+		//	 represents that point's amplitude (vertical axis);
+		//
+		// - type: String, accepts as values "outcome" or "input". If `type` is "input",
+		//   then the envelope describes a user provided `ideal curve` and is editable;
+		//   if `type` is "outcome", the envelope describes an `actual`, or `post-factum`
+		//   result of a process, and is never editable. This allows one to observe,
+		//   on the same chart, the expected and the actual result of a stochastic process.
+		[Bindable]
+		public function set parameters(value:Array):void {
+			var i:int;
+			var parameter:Object;
+
+			// Discard selection, reset all chart-related data and unbind any existing event listeners.
+			if (_parameters && _parameters.length) {
+				if (_tooltipTimeoutTimer) {
+					_tooltipTimeoutTimer.stop();
+					_tooltipTimeoutTimer = null;
+				}
+				_discardExistingTooltip();
+				_finalizeDragSession();
+				_clearNodesSelection();
+				_purgeAllEnvelopeNodes();
+				_purgeAllEnvelopes();
+				_selectionCharts = [];
+				_lastNodeChangeReason = null;
+				for (i = 0; i < _parameters.length; i++) {
+					parameter = _parameters[i];
+					if (parameter is IEventDispatcher) {
+						(parameter as IEventDispatcher).removeEventListener(PropertyChangeEvent.PROPERTY_CHANGE, _onParameterChanged);
+					}
+				}
+			}
+
+			// Bind new event listeners if applicable
+			_parameters = value;
+			if (_parameters && _parameters.length) {
+				for (i = 0; i < _parameters.length; i++) {
+					parameter = _parameters[i];
+					if (parameter is IEventDispatcher) {
+						(parameter as IEventDispatcher).addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, _onParameterChanged);
+					}
+				}
+				_buildEnvelopeSprites();
+				_buildSelectionCharts();
+			}
+			_drawEnvelopes();
+		}
+
+		public function get parameters():Array {
+			return _parameters;
+		}
+
+		/**
+		 * Explicitly releases resources to aid the garbage collector. Only execute this
+		 * method when you are positive that the component will not be needed anymore.
+		 */
+		public function prepareForGC(event:Event):void {
+			var i:int;
+			var envelope:Sprite;
+			for (i = 0; i < _envelopes.length; i++) {
+				envelope = (_envelopes[i] as Sprite);
+				envelope.removeEventListener(MouseEvent.CLICK, _onEnvelopeClick);
+				envelope.removeEventListener(MouseEvent.DOUBLE_CLICK, _onEnvelopeDblClick);
+				envelope.removeEventListener(MouseEvent.MOUSE_OVER, _onEnvelopeMouseOver);
+				envelope.removeEventListener(MouseEvent.MOUSE_OUT, _onEnvelopeMouseOut);
+				envelope.removeEventListener(MouseEvent.RIGHT_CLICK, _onEnvelopeRightClick);
+			}
+			stage.removeEventListener(MouseEvent.MOUSE_MOVE, _onGlobalMouseMove);
+			stage.removeEventListener(MouseEvent.MOUSE_UP, _onGlobalMouseUp);
+			removeEventListener(MouseEvent.CLICK, _onOutsideClick);
+		}
+
+		// Holds the `maximum` property value for the horizontal Scrollbar component.
+		[Bindable]
+		private var _maxXScroll:int = 0;
+
+		// Holds the `maximum` property value for the vertical Scrollbar component.
+		[Bindable]
+		private var _maxYScroll:int = 0;
+
+		// Holds correspondence between drawn vertical grid line indices and their local
+		// "x" coordinates
+		private var _xGridlineIndexToCoords:Array = [];
+
+		// Holds correspondence between local "x" coordinates and drawn vertical
+		// grid line indices
+		private var _xCoordsToGridlineIndex:Array = [];
+
+		// Holds correspondence between drawn horizontal grid line indices and their local
+		// "y" coordinates
+		private var _yGridlineIndexToCoords:Array = [];
+
+		// Holds correspondence between local "y" coordinates and drawn horizontal
+		// grid line indices
+		private var _yCoordsToGridlineIndex:Array = [];
+
+		// Holds correspondence between drawn vertical grid line indices and their local
+		// "x" coordinates, but only for visible lines, i.e., lines that were effectively
+		// drawn in the chart.
+		private var _visibleXGridlineIndexToCoords:Array = [];
+
+		// Holds correspondence between drawn horizontal grid line indices and their local
+		// "y" coordinates, but only for visible lines, i.e., lines that were effectively
+		// drawn in the chart.
+		private var _visibleYGridlineIndexToCoords:Array = [];
+
+		// Holds the index of the first horizontal gridline that would fit in the current
+		// viewport (given the current scale and scroll offset), regardless of whether that
+		// line is actually drawn or not.
+		private var _firstXLineIndex:uint;
+
+		// Holds the index of the last horizontal gridline that would fit in the current
+		// viewport (given the current scale and scroll offset), regardless of whether that
+		// line is actually drawn or not.
+		private var _lastXLineIndex:uint;
+
+		// Holds the index of the first vertical gridline that would fit in the current
+		// viewport (given the current scale and scroll offset), regardless of whether that
+		// line is actually drawn or not.
+		private var _firstYLineIndex:uint;
+
+		// Holds the index of the last vertical gridline that would fit in the current
+		// viewport (given the current scale and scroll offset), regardless of whether that
+		// line is actually drawn or not.
+		private var _lastYLineIndex:uint;
+
+		// Holds the calculated size of the gap between two adjacent vertical gridlines,
+		// regardless to the actual skipping pattern used when drawing them.
+		private var _xGapSize:Number;
+
+		// Holds the calculated size of the gap between two adjacent horizontal gridlines,
+		// regardless to the actual skipping pattern used when drawing them.
+		private var _yGapSize:Number;
+
+		// The computed width of a digit char (monotype fonts were used, so each
+		// char uses the same spacing). Made `static` to survice class termination.
+		private static var _charW:Number;
+
+		// The computed height of a digit char (monotype fonts were used, so each
+		// char uses the same spacing). Made `static` to survice class termination.
+		private static var _charH:Number;
+
+		// @see `timelineFactor`
+		// @default	1
+		private var _timelineFactor:Number = 1;
+
+		// @see `_amplitudeFactor`
+		// @default	0
+		private var _amplitudeFactor:Number = 0;
+
+		// @see `horizontalScrollFactor`
+		// @default	0
+		private var _horizontalScrollFactor:Number = 0;
+
+		// @see `verticalScrollFactor`
+		// @default	0
+		private var _verticalScrollFactor:Number = 0;
+
+		// @see `parameters`
+		private var _parameters:Array = [];
+
+		// Holds a Rectangle for each plotted integers group, to aid in collision avoidance.
+		private var _plottedIntegerAreas:Array = [];
+
+		// Collection of Sprites to draw envelopes in, one per envelope
+		private var _envelopes:Array = [];
+
+		// The points each envelope consists in, as a bidimensional Array, the deepest Array containing Sprite objects.
+		private var _envelopeNodes:Array = [];
+
+		// The selected points, on each envelope, as a bidimensional Array; the deepest Array's length matches the total
+		// number of nodes each envelope respectivelly has; each index in the Array holds a Boolean value, which will be
+		// `true` if the corresponding node is selected, or `false` otherwise.
+		private var _selectionCharts:Array = [];
+
+		// Shape used to mask the envelopes, so that only their part that overlaps the grid
+		// is shown
+		private var _envelopeMasks:Array = [];
+
+		// The currently selected parameter data item
+		private var _selectedParam:Object = null;
+
+		// Flag we raise to prevent recursive invocation of the `_onParameterChanged()`
+		// method (when the mothod itself causes a new PropertyChangeEvent event to be
+		// dispatched).
+		private var _ignoreParamChange:Boolean;
+
+		// Stores the index of the previously selected envelope node. Used by the multiple selection logic to establish
+		// the range of nodes to be acted upon.
+		private var _lastNodeIndex:int = -1;
+
+		// Flag we raise during a "drag session". For as long as this flag is raised, all selected envelope nodes will
+		// follow the mouse cursor (within certain boundaries) and their corresponding envelope and parameter values
+		// will update accordingly.
+		private var _nowDragging:Boolean = false;
+
+		// Flag we raise when user actually changed position of selected nodes as result of an initiated drag session.
+		private var _actualDraggingOccurred:Boolean = false;
+
+		// Stores a pair of "inner" and "outer" areas for each contiguous group of selected nodes. During dragging,
+		// each of these pairs will be observed, so that the "inner" area always stays within the "outer" area.
+		private var _boundarySets:Array;
+
+		// Stores detailed information about the nodes/values found in the current envelope/parameter at drag start.
+		// This class member is an Array of Objects, each Object containing the following information:
+		// - "isSelected": whether the node is selected or not
+		// - "nodeIndex": the ordinal index of the node/value within its parent envelope/parameter;
+		// - "nodeTime": the horizontal, or `x` component of the node, as a horizontal axis index (not as a pixel
+		//   coordinate);
+		// - "nodeAmplitude": the vertical, or `y` component of the node, as a vertical axis index (not as a pixel
+		//   coordinate).
+		private var _nodesSnapshot:Array;
+
+		// Holds the original, horizontal axis index of the node dragging was started from.
+		private var _anchorXAxis:int = 0;
+
+		// Holds the original, vertical axis index of the node dragging was started from.
+		private var _anchorYAxis:int = 0;
+
+		// Holds the ordinal index of the node dragging was started from.
+		private var _anchorNodeIndex:int = -1;
+
+		// Stores the last non-zero `x` displacement recorded during dragging. The value represents an index value on the
+		// horizontal axis, not a pixel coordinate.
+		private var _rawDisplacementX:int = 0;
+
+		// Stores the last non-zero `y` displacement recorded during dragging. The value represents an index value on the
+		// vertical axis, not a pixel coordinate.
+		private var _rawDisplacementY:int = 0;
+
+		// The horizontal axis the tooltip must follow while dragging. For as long as a dragging session is open, the
+		// tooltip will stop following the mouse cursor, and instead keep with the first touched node (the "anchor node").
+		private var _inDragTooltipX:int = 0;
+
+		// The vertical axis the tooltip must follow while dragging. For as long as a dragging session is open, the
+		// tooltip will stop following the mouse cursor, and instead keep with the first touched node (the "anchor node").
+		private var _inDragTooltipY:int = 0;
+
+		// Storage for the "updated" time (X coordinate) the selected node takes while being dragged from one gridline
+		// to the next. Also displayed in the tooltip during dragging.
+		private var _changedTime:int;
+
+		// Storage for the "updated" amplitude (Y coordinate) the selected node takes while being dragged from one gridline
+		// to the next. Also displayed in the tooltip during dragging.
+		private var _changedAmplitude:int;
+
+		// Point instance to be reused during mouse coordinate computations while dragging.
+		private var _dragHelper:Point;
+
+		// Stores the last context a "nodesChange" event was dispatched from, to minimize the odds for redundant
+		// broadcasting.
+		private var _lastNodeChangeReason:String;
+
+		// The last tooltip object plotted over the chart for displaying information about the hovered element.
+		// Part of the mutual exclusion logic that ensures that only one tooltip is displayed at a time.
+		private var _lastTooltip:IToolTip;
+
+		// Counter used to discard tooltips after a delay when a "mouse out" condition occurs
+		private var _tooltipTimeoutTimer:Timer;
+
+
+		/**
+		 * Creates raster versions of the vector digit images, to be plotted later on the
+		 * charts, as part of the horizontal and vertical labels
+		 */
+		private function _buildDigitRasters():void {
+			const safeGutter:Number = 0.9;
+			var charRatio:Number = _labelFontSize / DIGIT_CHAR_HEIGHT;
+			_charH = Math.ceil(DIGIT_CHAR_HEIGHT * charRatio);
+			_charW = Math.ceil(DIGIT_CHAR_WIDTH * charRatio);
+			for (var i:int = 0; i < CHAR_VECTORS.length; i++) {
+				var charDefinition:Class = CHAR_VECTORS[i] as Class;
+				var charInstance:SpriteVisualElement = (new charDefinition) as SpriteVisualElement;
+				var bitmap:BitmapData = new BitmapData(_charW, _charH, true, 0x00000000);
+
+				// Color char
+				var redOffset:Number = ((_labelColor >> 16) & 0xFF);
+				var greenOffset:Number = ((_labelColor >> 8) & 0xFF);
+				var blueOffset:Number = (_labelColor & 0xFF);
+				var colorization:ColorTransform = new ColorTransform(1, 1, 1, 1, redOffset, greenOffset, blueOffset, 0);
+
+				// Fit char
+				var scaleMatrix:Matrix = new Matrix;
+				scaleMatrix.scale(charRatio * safeGutter, charRatio * safeGutter);
+				scaleMatrix.translate((1 - safeGutter) * _charW, (1 - safeGutter) * _charH);
+
+				// Create and store raster image
+				bitmap.draw(charInstance, scaleMatrix, colorization, null, null, true);
+				CHAR_RASTERS[i] = bitmap;
+			}
+		}
+
+		/**
+		 * Draws a numeric char (0 to 9) at the given X and Y coordinates. This method does not
+		 * deal with the actual width and height of each char. Upon invoking this method, they
+		 * were precalculated based on `_labelFontSize`.
+		 */
+		private function plotDigit(charIndex:uint, charX:Number, charY:Number):void {
+			var bitmap:BitmapData = CHAR_RASTERS[charIndex] as BitmapData;
+			var translationMatrix:Matrix = new Matrix;
+			translationMatrix.translate(charX, charY);
+			graphics.beginBitmapFill(bitmap, translationMatrix, false);
+			graphics.drawRect(charX, charY, _charW, _charH);
+			graphics.endFill();
+		}
+
+		/**
+		 * Draws a positive integer at the given X and Y coordinates, with respect to provided
+		 * horizontal and vertical alignment.
+		 *
+		 * @param	value
+		 * 			The positive integer to plot
+		 *
+		 * @param	x
+		 * 			The horizontal anchor point
+		 *
+		 * @param	y
+		 * 			The vertical anchor point
+		 *
+		 * @param	xAlignment
+		 * 			How to align the resulting integer with respect to the horizontal anchor
+		 * 			point, e.g., `0` means align left, `0.5` means align center, `1` means
+		 * 			align right.
+		 *
+		 * @param	yAlignment
+		 * 			How to align the resulting integer with respect to the vertical anchor
+		 * 			point, e.g., `0` means align top, `0.5` means align middle, `1` means
+		 * 			align bottom.
+		 *
+		 * @param	noOverlap
+		 * 			Whether overlapping the previously plotted integers is forbidden (`true`) or
+		 * 			not (`false`). If `noOverlap` is `true` and an overlapping situation would
+		 * 			occur, the function simply returns, without plotting anything.
+		 */
+		private function plotInteger(value:uint, x:Number, y:Number, xAlignment:Number = 0,
+									 yAlignment:Number = 0, noOverlap:Boolean = false):void {
+			var charIndices:Array = [];
+			var threshold:uint = 1;
+			if (value == 0) {
+				charIndices.unshift(value);
+				threshold *= 10;
+			}
+			while (threshold <= value) {
+				charIndices.unshift(Math.floor((value / threshold) % 10));
+				threshold *= 10;
+			}
+			var groupW:Number = _charW * charIndices.length;
+			var groupH:Number = _charH;
+			var groupX:Number = (x - groupW * xAlignment);
+			var groupY:Number = (y - groupH * yAlignment);
+			var currPlotArea:Rectangle = new Rectangle(groupX, groupY, groupW, groupH);
+			var mayPlot:Boolean = (!noOverlap || !_haveHit(currPlotArea, _plottedIntegerAreas, _labelPaddingPercent));
+			if (mayPlot) {
+				for (var i:int = 0; i < charIndices.length; i++) {
+					var charIndex:uint = charIndices[i] as uint;
+					var charX:Number = (groupX + _charW * i);
+					plotDigit(charIndex, charX, groupY);
+				}
+				_plottedIntegerAreas.push(currPlotArea);
+			}
+		}
+
+		/**
+		 * Tests a given "area" against several "areas" and returns `true` if at least one "hit"
+		 * (or geometrical intersection) is found.
+		 *
+		 * @param	area
+		 * 			A Rectangle to be tested.
+		 *
+		 * @param	areas
+		 * 			An Array containing an arbitrary number of Rectangles to test for intersection
+		 * 			with the `area` Rectangle.
+		 *
+		 * @param	tollerance
+		 * 			A factor to inflate or deflate the `area` Rectangle by, in order to increase or decrease
+		 * 			the ods for geometrical intersection with one of the `areas` Rectangles, thus favoring
+		 * 			more loose or more tight hits. E.g., a `tollerance` of `2` would inflate the `area`
+		 * 			Rectangle twice as big, while a `tollerance` of `0.5` would shrink it to half its current
+		 * 			size. Inflating or shrinking is done on a clone and does not affects the original `area`
+		 * 			Rectangle.
+		 */
+		private function _haveHit(area:Rectangle, areas:Array, tollerance:Number = NaN):Boolean {
+			var refRect:Rectangle = area.clone();
+			if (!isNaN(tollerance)) {
+				refRect.inflate(tollerance * refRect.width, tollerance * refRect.height);
+			}
+			var i:int;
+			var testRect:Rectangle;
+			for (i = 0; i < areas.length; i++) {
+				testRect = (areas[i] as Rectangle);
+				if (refRect.intersects(testRect)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Draws the outer border of this component.
+		 */
+		private function _drawBorder(w:Number, h:Number):void {
+
+			// Setup style
+			graphics.lineStyle(_borderThickness, _borderColor);
+
+			// Compute boundaries
+			var leftBoundary:Number = (_leftGutter + _trackThickness);
+			var outerWidth:Number = (w - leftBoundary);
+			var bottomTrackLow:Number = (h - _bottomGutter);
+			var bottomTrackHigh:Number = (bottomTrackLow - _trackThickness);
+			var topTrackLow:Number = _trackThickness;
+
+			// Draw outer border
+			graphics.beginFill(_backgroundColor, _backgroundAlpha);
+			graphics.drawRect(leftBoundary, 0, outerWidth, bottomTrackLow);
+			graphics.endFill();
+
+			// Draw bottom track demarcation line
+			graphics.moveTo(leftBoundary, bottomTrackHigh);
+			graphics.lineTo(w, bottomTrackHigh);
+
+			// Draw top track demarcation line
+			graphics.moveTo(leftBoundary, _trackThickness);
+			graphics.lineTo(w, _trackThickness);
+
+			// Reset style
+			graphics.lineStyle();
+		}
+
+		/**
+		 * Draws a solid color underneath the chart area
+		 */
+		private function _drawBackground(unscaledWidth:Number, unscaledHeight:Number):void {
+			graphics.beginFill(0, 0.0001);
+			graphics.drawRect(0, 0, unscaledWidth, unscaledHeight);
+			graphics.endFill();
+		}
+
+		/**
+		 * Draws the vertical lines that comprise the grid.
+		 */
+		private function _drawVerticalGridlines(unscaledWidth:Number,
+												unscaledHeight:Number):void {
+
+			// Handling rounding errors that cause recursive computation
+			unscaledWidth -= 2;
+			_xGridlineIndexToCoords = [];
+			_visibleXGridlineIndexToCoords = [];
+			_xCoordsToGridlineIndex = [];
+			var leftBoundary:Number = (_leftGutter + _trackThickness);
+			var numVisibleXLines:uint = Math.floor(MAX_GRIDLINES_X * _gridVisiblePercentX);
+			var numLinesToTheLeft:uint = Math.floor(numVisibleXLines * _viewPortXAxisPosition);
+
+			// Handling rounding errors at the beginning of the range
+			if (_gridXAxis < numLinesToTheLeft) {
+				_gridXAxis = numLinesToTheLeft;
+			}
+
+			_firstXLineIndex = (_gridXAxis - numLinesToTheLeft) + 1;
+			_lastXLineIndex = (_firstXLineIndex + numVisibleXLines) - 1;
+
+			// Handling rounding errors at the end of the range
+			var overflowDelta:Number = (MAX_GRIDLINES_X - _lastXLineIndex);
+			if (overflowDelta < 0) {
+				_lastXLineIndex = MAX_GRIDLINES_X;
+				numVisibleXLines += overflowDelta;
+			}
+
+			var numGaps:uint = (numVisibleXLines - 1);
+			_xGapSize = ((unscaledWidth - _borderThickness * 2 - leftBoundary) / numGaps);
+			var currentLineIndex:uint = _firstXLineIndex;
+			var skipsCounter:uint = 0;
+			var i:uint;
+			var lineX:Number;
+			var startY:Number;
+			var endY:Number;
+			var lineColor:uint;
+			var cellSize:Number = 0;
+			var isLegitCellSize:Boolean = true;
+			for (i = 0; i < numVisibleXLines; i++) {
+				lineX = (i * _xGapSize + _borderThickness + leftBoundary);
+				startY = 0;
+				endY = unscaledHeight - _bottomGutter;
+				_xGridlineIndexToCoords[currentLineIndex] = lineX;
+				_xCoordsToGridlineIndex[Math.round(lineX)] = currentLineIndex;
+				var isAxisLine:Boolean = (currentLineIndex == _gridXAxis);
+				if (_visibleXGridlineIndexToCoords.length > 0) {
+					cellSize = (lineX - _visibleXGridlineIndexToCoords[_visibleXGridlineIndexToCoords.length - 1]);
+					if (!isNaN(cellSize)) {
+						isLegitCellSize = (cellSize >= _gridCellMinSize);
+					}
+				}
+				var mustKeepLine:Boolean = (skipsCounter == 0 && isLegitCellSize);
+				if (mustKeepLine || isAxisLine) {
+					if (mustKeepLine) {
+						_visibleXGridlineIndexToCoords[currentLineIndex] = lineX;
+					}
+					lineColor = isAxisLine ? _axisColor : _gridlineColor;
+					graphics.lineStyle(_gridlineThickness, lineColor);
+					graphics.moveTo(lineX, startY);
+					graphics.lineTo(lineX, endY);
+					graphics.lineStyle();
+				}
+				skipsCounter++;
+				if (skipsCounter >= _drawNthXLine) {
+					skipsCounter = 0;
+				}
+				currentLineIndex++;
+			}
+		}
+
+		/**
+		 * Draws the horizontal lines that comprise the grid
+		 */
+		private function _drawHorizontalGridlines(unscaledWidth:Number,
+												  unscaledHeight:Number):void {
+
+			// Handling rounding errors that cause recursive computation
+			unscaledHeight -= 2;
+			_yGridlineIndexToCoords = [];
+			_visibleYGridlineIndexToCoords = [];
+			_yCoordsToGridlineIndex = [];
+			var leftBoundary:Number = _leftGutter;
+			var numVisibleYLines:uint = Math.floor(MAX_GRIDLINES_Y * _gridVisiblePercentY);
+			var numLinesAbove:uint = Math.floor(numVisibleYLines * _viewPortYAxisPosition);
+
+			// Handling rounding errors at the beginning of the range
+			if (_gridYAxis < numLinesAbove) {
+				_gridYAxis = numLinesAbove;
+			}
+
+			_firstYLineIndex = (_gridYAxis - numLinesAbove) + 1;
+			_lastYLineIndex = (_firstYLineIndex + numVisibleYLines) - 1;
+
+			// Handling rounding errors at the end of the range
+			var overflowDelta:Number = (MAX_GRIDLINES_Y - _lastYLineIndex);
+			if (overflowDelta < 0) {
+				_lastYLineIndex = MAX_GRIDLINES_Y;
+				numVisibleYLines += overflowDelta;
+			}
+
+			var numGaps:uint = (numVisibleYLines - 1);
+			_yGapSize = (unscaledHeight - _borderThickness * 4 -
+					_trackThickness * 2 - _bottomGutter) / numGaps;
+			var currentLineIndex:uint = _firstYLineIndex;
+			var skipsCounter:uint = 0;
+			var i:uint;
+			var lineY:Number;
+			var startX:Number;
+			var endX:Number;
+			var lineColor:uint;
+			var cellSize:Number = 0;
+			var isLegitCellSize:Boolean = true;
+
+			// We draw horizontal gridlines in reversed order, from bottom to top, so that the `0` point is the
+			// same on both axes
+			var bottomPoint:Number = (unscaledHeight - _bottomGutter);
+
+			for (i = 0; i < numVisibleYLines; i++) {
+				lineY = bottomPoint - (i * _yGapSize + _trackThickness);
+				startX = leftBoundary;
+				endX = (unscaledWidth - _borderThickness);
+				_yGridlineIndexToCoords[currentLineIndex] = lineY;
+				_yCoordsToGridlineIndex[Math.round(lineY)] = currentLineIndex;
+				var isAxisLine:Boolean = (currentLineIndex == _gridYAxis);
+				if (_visibleYGridlineIndexToCoords.length > 0) {
+					cellSize = (_visibleYGridlineIndexToCoords[_visibleYGridlineIndexToCoords.length - 1] - lineY);
+					if (!isNaN(cellSize)) {
+						isLegitCellSize = (cellSize >= _gridCellMinSize);
+					}
+				}
+				var mustKeepLine:Boolean = (skipsCounter == 0 && isLegitCellSize);
+				if (mustKeepLine || isAxisLine) {
+					if (mustKeepLine) {
+						_visibleYGridlineIndexToCoords[currentLineIndex] = lineY;
+					}
+					lineColor = isAxisLine ? _axisColor : _gridlineColor;
+					graphics.lineStyle(_gridlineThickness, lineColor);
+					graphics.moveTo(startX, lineY);
+					graphics.lineTo(endX, lineY);
+					graphics.lineStyle();
+				}
+				skipsCounter++;
+				if (skipsCounter >= _drawNthYLine) {
+					skipsCounter = 0;
+				}
+				currentLineIndex++;
+			}
+		}
+
+		/**
+		 * Draws vertical scale marks to the left of selected horizontal grid lines
+		 */
+		private function _drawVerticalLabels(unscaledWidth:Number,
+											 unscaledHeight:Number):void {
+			var skipsCounter:uint = 0;
+			for (var i:int = 0; i < _visibleYGridlineIndexToCoords.length; i++) {
+				if (_visibleYGridlineIndexToCoords[i] === undefined) {
+					continue;
+				}
+				var coordY:Number = _visibleYGridlineIndexToCoords[i] as Number;
+				var coordX:Number = (_leftGutter * 0.9);
+				if (skipsCounter == 0) {
+					plotInteger(i, coordX, coordY, 1, 0.5, true);
+				}
+				skipsCounter++;
+				if (skipsCounter >= _drawNthYLabel) {
+					skipsCounter = 0;
+				}
+			}
+		}
+
+		/**
+		 * Draws horizontal scale marks below selected vertical grid lines
+		 */
+		private function _drawHorizontalLabels(unscaledWidth:Number,
+											   unscaledHeight:Number):void {
+			var skipsCounter:uint = 0;
+			for (var i:int = 0; i < _visibleXGridlineIndexToCoords.length; i++) {
+				if (_visibleXGridlineIndexToCoords[i] === undefined) {
+					continue;
+				}
+				var coordX:Number = _visibleXGridlineIndexToCoords[i] as Number;
+				var coordY:Number = (unscaledHeight - _bottomGutter * 0.5);
+				if (skipsCounter == 0) {
+					plotInteger(i, coordX, coordY, 0.5, 0.5, true);
+				}
+				skipsCounter++;
+				if (skipsCounter >= _drawNthXLabel) {
+					skipsCounter = 0;
+				}
+			}
+		}
+
+		/**
+		 * Destroys all previously created envelopes and makes sure no event listener is left behind.
+		 */
+		private function _purgeAllEnvelopes():void {
+			if (_parameters && _parameters.length) {
+				var i:int;
+				var envelope:SpriteVisualElement;
+				for (i = 0; i < _parameters.length; i++) {
+					envelope = (_envelopes[i] as SpriteVisualElement);
+					if (!envelope) {
+						continue;
+					}
+					envelope.graphics.clear();
+					envelope.removeEventListener(MouseEvent.CLICK, _onEnvelopeClick);
+					envelope.removeEventListener(MouseEvent.DOUBLE_CLICK, _onEnvelopeDblClick);
+					envelope.removeEventListener(MouseEvent.MOUSE_OVER, _onEnvelopeMouseOver);
+					envelope.removeEventListener(MouseEvent.MOUSE_OUT, _onEnvelopeMouseOut);
+					envelope.removeEventListener(MouseEvent.RIGHT_CLICK, _onEnvelopeRightClick);
+					envelope.mask = null;
+					removeElement(envelope);
+				}
+				_envelopes.length = 0;
+				_envelopeMasks.length = 0;
+				envelope = null;
+			}
+		}
+
+		/**
+		 * Destroys all previously created envelope nodes and makes sure no event listener is left behind.
+		 */
+		private function _purgeAllEnvelopeNodes():void {
+			var i:int;
+			var j:int;
+			var nodes:Array;
+			var node:Sprite;
+			var nodeParent:DisplayObjectContainer;
+			for (i = 0; i < _envelopeNodes.length; i++) {
+				nodes = (_envelopeNodes[i] as Array);
+				if (nodes) {
+					for (j = 0; j < nodes.length; j++) {
+						node = (nodes[j] as Sprite);
+						node.removeEventListener(MouseEvent.MOUSE_DOWN, _onEnvelopeNodeTouched);
+						node.removeEventListener(MouseEvent.RIGHT_CLICK, _onEnvelopeNodeRightClicked);
+						nodeParent = (node.parent as DisplayObjectContainer);
+						if (nodeParent) {
+							nodeParent.removeChild(node);
+						}
+					}
+					nodes.length = 0;
+				}
+			}
+			_envelopeNodes.length = 0;
+			nodes = null;
+			node = null;
+			nodeParent = null;
+		}
+
+		/**
+		 * Draws the visible portion of all available envelopes, with respect to the
+		 * viewport's current scale and scroll offset on both axes.
+		 */
+		private function _drawEnvelopes():void {
+			_purgeAllEnvelopeNodes();
+			if (_parameters && _parameters.length > 0) {
+				var i:int;
+				var param:Object;
+				var paramValues:Array;
+				var envelope:SpriteVisualElement;
+				var topEnvelope:SpriteVisualElement;
+
+				for (i = 0; i < _parameters.length; i++) {
+					envelope = (_envelopes[i] as SpriteVisualElement);
+					if (!envelope) {
+						continue;
+					}
+					envelope.graphics.clear();
+					param = (parameters[i] as Object);
+					if (!param || !param.values) {
+						continue;
+					}
+					envelope.useHandCursor = envelope.buttonMode = (!(param.locked as Boolean) && param.type != 'outcome');
+					if (param.visible) {
+						paramValues = (param.values as Array);
+						_drawEnvelope(paramValues, param.color, (param.locked || param.type == 'outcome'), param.selected, i);
+					}
+				}
+			}
+		}
+
+		/**
+		 * Draws a mask for each envelope, so that the envelope does not overflow the
+		 * grid area.
+		 */
+		private function _drawMasks(chartWidth:Number, chartHeight:Number):void {
+
+			// Compute boundaries
+			var leftBoundary:Number = (_leftGutter + _trackThickness);
+			var outerWidth:Number = (chartWidth - leftBoundary);
+			var bottomTrackLow:Number = (chartHeight - _bottomGutter);
+
+			// Draw fill
+			var i:int;
+			var mask:Sprite;
+			var g:Graphics;
+			for (i = 0; i < _envelopeMasks.length; i++) {
+				mask = (_envelopeMasks[i] as Sprite);
+				g = mask.graphics;
+				g.clear();
+				g.beginFill(0);
+				g.drawRect(leftBoundary, 0, outerWidth, bottomTrackLow);
+				g.endFill();
+			}
+		}
+
+		/**
+		 * Draws the visible portion of an envelope defined by its point values, with respect to the
+		 * viewport's current scale and scroll offset on both axes, optionally adding a shadow underneath.
+		 */
+		private function _drawEnvelope(points:Array, color:uint, locked:Boolean,
+									   isSelected:Boolean, spriteIndex:int):void {
+
+			// Collect all envelope coordinates
+			var lineCoords:Array = [];
+			var point:Point = DEFAULT_POINT.clone();
+			var pointTimelinePercent:uint;
+			var pointAmplitudePercent:uint;
+			var currPointCoords:Point;
+			for (var i:uint = 0; i < points.length; i++) {
+				if (points[i] === undefined) {
+					continue;
+				}
+				pointTimelinePercent = Math.min(Math.max(MIN_GRIDLINES_X, i), MAX_GRIDLINES_X);
+				pointAmplitudePercent = points[i] as uint;
+				pointAmplitudePercent = Math.min(Math.max(MIN_GRIDLINES_Y, pointAmplitudePercent), MAX_GRIDLINES_Y);
+				point.x = pointTimelinePercent;
+				point.y = pointAmplitudePercent;
+
+				// Collect points
+				currPointCoords = _resolvePointToCoordinates(point);
+				lineCoords.push(currPointCoords);
+			}
+
+			// Draw envelope
+			if (lineCoords.length) {
+				_plotLinesAndNodes(lineCoords, color, locked, isSelected, spriteIndex);
+			}
+		}
+
+		/**
+		 * Given a chart point (expressed as a pair of horizontal and vertical gridline indices), returns the actual
+		 * pixel coordinates where that gridlines intersection would occur on screen, if an "infinite" viewport were to
+		 * be used. Values are calculated in this component's local system of coordinates, which can result in negative
+		 * numbers when the given point is "offscreen" to the left and/or top of the current viewport.
+		 */
+		private function _resolvePointToCoordinates(point:Point):Point {
+			var coordinate:Point = new Point;
+			var xIndex:Number = point.x;
+			var yIndex:Number = point.y;
+			var deltaIndex:Number;
+			var deltaCoord:Number;
+
+			// If given indices fit in the current viewport, then their coordinates were already
+			// calculated and stored, and can simply be used as such. Otherwise, they need to be
+			// computed on the spot
+			if (xIndex in _xGridlineIndexToCoords) {
+				coordinate.x = _xGridlineIndexToCoords[xIndex] as Number;
+			} else {
+				deltaIndex = (xIndex < _firstXLineIndex) ? xIndex - _firstXLineIndex : xIndex - _lastXLineIndex;
+				deltaCoord = (deltaIndex * _xGapSize);
+				coordinate.x = (xIndex < _firstXLineIndex) ? _xGridlineIndexToCoords[_firstXLineIndex] + deltaCoord :
+						_xGridlineIndexToCoords[_lastXLineIndex] + deltaCoord;
+			}
+			if (yIndex in _yGridlineIndexToCoords) {
+				coordinate.y = _yGridlineIndexToCoords[yIndex] as Number;
+			} else {
+				deltaIndex = (yIndex < _firstYLineIndex) ? yIndex - _firstYLineIndex : yIndex - _lastYLineIndex;
+				deltaCoord = (deltaIndex * _yGapSize);
+				coordinate.y = (yIndex < _firstYLineIndex) ? _yGridlineIndexToCoords[_firstYLineIndex] - deltaCoord :
+						_yGridlineIndexToCoords[_lastYLineIndex] - deltaCoord;
+			}
+			return coordinate;
+		}
+
+		/**
+		 * Draws the line segments and small circles that represent an envelope with its nodes.
+		 */
+		private function _plotLinesAndNodes(coordinates:Array, color:uint, locked:Boolean, isSelected:Boolean, envelopeIndex:int):void {
+			var envelope:SpriteVisualElement = (_envelopes[envelopeIndex] as SpriteVisualElement);
+			var lineGraphics:Graphics = envelope.graphics;
+			var lineThickness:Number = (locked ? _envelopeLockedThickness : isSelected ? _selEnvelopeThickness : _envelopeThickness);
+			var underplotLineThickness:Number = (_selectedNodeRadius * 2);
+			var lineColor:uint = (locked ? Color.interpolateColor(color, _lockedTint, _lockedTintWeight) : color);
+			var nodeGraphics:Graphics;
+			var nodeRadius:Number = (locked ? _nodeLockedradius : isSelected ? _selectedNodeRadius : _nodeRadius);
+			var innerNodeRadius:Number = (nodeRadius - lineThickness * 0.85);
+			var nodeColor:uint = (locked ? Color.interpolateColor(color, _lockedTint, _lockedTintWeight) : color);
+			var shadow:Array = [new DropShadowFilter(3.5, 45, _shadowColor, _shadowAlpha, 5.5, 5.5, 0.7)];
+			var i:int;
+			var point:Point;
+			var x:Number;
+			var y:Number;
+			var node:Sprite;
+
+			// PLot lines
+			envelope.filters = (isSelected && !locked) ? shadow : null;
+
+			// Underplot a much thicker, virtually invisible line, in order to improve mouse events catching
+			lineGraphics.lineStyle(underplotLineThickness, 0, 0.001);
+			for (i = 0; i < coordinates.length; i++) {
+				point = coordinates[i] as Point;
+				if (i == 0) {
+					lineGraphics.moveTo(point.x, point.y);
+				} else {
+					lineGraphics.lineTo(point.x, point.y);
+				}
+			}
+
+			// Draw the actual line, on top
+			lineGraphics.lineStyle(lineThickness, lineColor, isSelected ? _selEnvelopeAlpha : _envelopeAlpha);
+			for (i = 0; i < coordinates.length; i++) {
+				point = coordinates[i] as Point;
+				if (i == 0) {
+					lineGraphics.moveTo(point.x, point.y);
+				} else {
+					lineGraphics.lineTo(point.x, point.y);
+				}
+			}
+			lineGraphics.lineStyle();
+
+			// Plot nodes
+			_envelopeNodes[envelopeIndex] = [];
+			if (!locked) {
+				for (i = 0; i < coordinates.length; i++) {
+					node = new Sprite;
+					nodeGraphics = node.graphics;
+					nodeGraphics.beginFill(nodeColor, isSelected ? _selEnvelopeAlpha : _envelopeAlpha);
+					point = (coordinates[i] as Point);
+					nodeGraphics.drawCircle(point.x, point.y, nodeRadius);
+					nodeGraphics.endFill();
+					if (_isNodeSelected(envelopeIndex, i)) {
+						nodeGraphics.beginFill(_backgroundColor/*, isSelected? _selEnvelopeAlpha : _envelopeAlpha*/);
+						nodeGraphics.drawCircle(point.x, point.y, innerNodeRadius);
+						nodeGraphics.endFill();
+					}
+					node.addEventListener(MouseEvent.MOUSE_DOWN, _onEnvelopeNodeTouched);
+					node.addEventListener(MouseEvent.RIGHT_CLICK, _onEnvelopeNodeRightClicked);
+					(_envelopeNodes[envelopeIndex] as Array).push(node);
+					envelope.addChild(node);
+				}
+			}
+		}
+
+		/**
+		 * Executed upon each (re)drawing of this component
+		 */
+		override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void {
+
+			// Draw chart
+			var chartHeight:Number = (unscaledHeight - _scrollbarThickness - _viewControlsPadding);
+			var chartWidth:Number = (unscaledWidth - _scrollbarThickness - _viewControlsPadding);
+			graphics.clear();
+			_drawBackground(unscaledWidth, unscaledHeight);
+			_drawVerticalGridlines(chartWidth, chartHeight);
+			_drawHorizontalGridlines(chartWidth, chartHeight);
+			_plottedIntegerAreas = [];
+			_drawVerticalLabels(chartWidth, chartHeight);
+			_drawHorizontalLabels(chartWidth, chartHeight);
+			_drawBorder(chartWidth, chartHeight);
+			_drawEnvelopes();
+			_drawMasks(chartWidth, chartHeight);
+
+			// Position reset button
+			fitViewButton.setActualSize(_fitViewButtonSize, _fitViewButtonSize);
+			var fitButtonX:Number = (unscaledWidth - _fitViewButtonSize);
+			var fitButtonY:Number = (unscaledHeight - _fitViewButtonSize);
+			fitViewButton.move(fitButtonX, fitButtonY);
+
+			// Position horizontal slider
+			hSlider.setActualSize(_sliderLength, _sliderThickness);
+			var hSliderX:Number = (fitButtonX - _viewControlsPadding - _sliderLength);
+			var hliderY:Number = (unscaledHeight - _sliderThickness - Math.max(0, _scrollbarThickness - _sliderThickness) * 0.5);
+			hSlider.move(hSliderX, hliderY);
+
+			// Position vertical slider
+			vSlider.setActualSize(_sliderThickness, _sliderLength);
+			var vSliderX:Number = (unscaledWidth - _sliderThickness - Math.max(0, _scrollbarThickness - _sliderThickness) * 0.5);
+			var vSliderY:Number = (fitButtonY - _viewControlsPadding - _sliderLength);
+			vSlider.move(vSliderX, vSliderY);
+
+			// Position horizontal scrollbar
+			var leftBoundary:Number = (_leftGutter + _trackThickness);
+			var hScrollW:Number = (unscaledWidth - leftBoundary - _fitViewButtonSize - _sliderLength - _viewControlsPadding * 2);
+			hScroll.setActualSize(hScrollW, _scrollbarThickness);
+			hScroll.move(leftBoundary, unscaledHeight - _scrollbarThickness);
+
+			// Position vertical scrollbar
+			var vScrollH:Number = (unscaledHeight - _fitViewButtonSize - _sliderLength - _viewControlsPadding * 2);
+			vScroll.setActualSize(_scrollbarThickness, vScrollH);
+			vScroll.move(unscaledWidth - _scrollbarThickness, 0);
+
+			// Hide scrollbars when they are not needed
+			hScroll.visible = (_maxXScroll > 0);
+			vScroll.visible = (_maxYScroll > 0);
+		}
+
+		/**
+		 * Updates `_gridXAxis` and `_gridVisiblePercentX`.
+		 */
+		private function _updateGridXAxis():void {
+
+			// SCROLL
+			hScroll.value = (_horizontalScrollFactor * _maxXScroll);
+			var minAxisIndex:Number = (MAX_GRIDLINES_X * _gridVisiblePercentX *
+					_viewPortXAxisPosition);
+			var maxAxisIndex:Number = MAX_GRIDLINES_X - (
+					MAX_GRIDLINES_X * _gridVisiblePercentX * (1 - _viewPortXAxisPosition));
+			var scrolledIndex:int = Math.floor(_horizontalScrollFactor * (
+					maxAxisIndex - minAxisIndex) + minAxisIndex);
+			_gridXAxis = scrolledIndex;
+
+			// SCALE
+			hSlider.value = _timelineFactor;
+			_gridVisiblePercentX = MIN_VISIBLE_PERCENT +
+					(MAX_VISIBLE_PERCENT - MIN_VISIBLE_PERCENT) * _timelineFactor;
+		}
+
+		/**
+		 * Updates `_gridYAxis` and `_gridVisiblePercentY`.
+		 */
+		private function _updateGridYAxis():void {
+
+			// SCROLL
+			vScroll.value = (_verticalScrollFactor * _maxYScroll);
+			var minAxisIndex:Number = (MAX_GRIDLINES_Y * _gridVisiblePercentY * _viewPortYAxisPosition);
+			var maxAxisIndex:Number = MAX_GRIDLINES_Y - (MAX_GRIDLINES_Y * _gridVisiblePercentY * (1 - _viewPortYAxisPosition));
+			var scrolledIndex:int = MAX_GRIDLINES_Y - Math.floor(_verticalScrollFactor * (maxAxisIndex - minAxisIndex) + minAxisIndex);
+			_gridYAxis = scrolledIndex;
+
+			// SCALE
+			vSlider.value = _amplitudeFactor;
+			var inversedAmplitudeFactor:Number = (1 - _amplitudeFactor);
+			_gridVisiblePercentY = MIN_VISIBLE_PERCENT + (MAX_VISIBLE_PERCENT - MIN_VISIBLE_PERCENT) * inversedAmplitudeFactor;
+		}
+
+		/**
+		 * Updates the `maximum` property of the horizontal scrollbar based on the
+		 * current value of the `_timelineFactor` (i.e., the current scale factor on
+		 * the horizontal axis).
+		 */
+		private function _updateMaxXScroll():void {
+			var xVisiblePercent:Number = MIN_VISIBLE_PERCENT + ((MAX_VISIBLE_PERCENT -
+					MIN_VISIBLE_PERCENT) * _timelineFactor);
+			_maxXScroll = Math.round(MAX_GRIDLINES_X - (MAX_GRIDLINES_X * xVisiblePercent));
+		}
+
+		/**
+		 * Updates the `maximum` property of the vertical scrollbar based on the
+		 * current value of the `_amplitudeFactor` (i.e., the current scale factor on
+		 * the vertical axis);
+		 */
+		private function _updateMaxYScroll():void {
+			var inversedAmplitudeFactor:Number = (1 - _amplitudeFactor);
+			var yVisiblePercent:Number = MIN_VISIBLE_PERCENT + ((MAX_VISIBLE_PERCENT -
+					MIN_VISIBLE_PERCENT) * inversedAmplitudeFactor);
+			_maxYScroll = Math.round(MAX_GRIDLINES_Y - (MAX_GRIDLINES_Y * yVisiblePercent));
+		}
+
+
+		/**
+		 * Builds the Sprites to be used for drawing and masking envelopes, also setting
+		 * up the event listeners needed later on by the nodes selection mechanism.
+		 */
+		private function _buildEnvelopeSprites():void {
+			var i:int = 0;
+			var envelope:SpriteVisualElement;
+			var mask:SpriteVisualElement;
+			for (i = 0; i < _parameters.length; i++) {
+				envelope = new SpriteVisualElement;
+				envelope.doubleClickEnabled = true;
+				envelope.addEventListener(MouseEvent.CLICK, _onEnvelopeClick);
+				envelope.addEventListener(MouseEvent.DOUBLE_CLICK, _onEnvelopeDblClick);
+				envelope.addEventListener(MouseEvent.MOUSE_OVER, _onEnvelopeMouseOver);
+				envelope.addEventListener(MouseEvent.MOUSE_OUT, _onEnvelopeMouseOut);
+				envelope.addEventListener(MouseEvent.RIGHT_CLICK, _onEnvelopeRightClick);
+				mask = new SpriteVisualElement;
+				envelope.mask = mask;
+				addElement(envelope);
+				_envelopes[i] = envelope;
+				_envelopeMasks[i] = mask;
+			}
+		}
+
+		/**
+		 * Builds a bidimensional Array to leep track of currently selected points/values inside
+		 * each envelope/parameter.
+		 * @see `_selectionCharts`
+		 */
+		private function _buildSelectionCharts():void {
+			var i:int = 0;
+			var j:int = 0;
+			var parameter:Object;
+			var paramValues:Array;
+			var selectionChart:Array;
+			for (i = 0; i < _parameters.length; i++) {
+				parameter = _parameters[i];
+				if (_selectionCharts[i] === undefined) {
+					paramValues = (parameter.values as Array);
+					if (paramValues && paramValues.length) {
+						selectionChart = [];
+						for (j = 0; j < paramValues.length; j++) {
+							if (paramValues[j] !== undefined) {
+								selectionChart.push(false);
+							}
+						}
+						_selectionCharts[i] = selectionChart;
+					}
+				}
+			}
+		}
+
+		/**
+		 * Compiles and returns information about the relevant assets beneath the current mouse cursor
+		 * position. Returned Object has these properties, some or all of which can be `null` (or `-1`
+		 * for numeric values):
+		 * - parameter;
+		 * - envelope;
+		 * - envelopeIndex;
+		 * - node;
+		 * - nodeIndex;
+		 * - nodeTime;
+		 * - nodeAmplitude;
+		 * - target.
+		 */
+		private function _getAssetUnderMouseCursor(event:MouseEvent):Object {
+
+			var parameter:Object = null;
+			var envelope:SpriteVisualElement = null;
+			var envelopeIndex:int = -1;
+			var node:Sprite = null;
+			var nodeIndex:int = -1;
+			var nodeTime:int = -1;
+			var nodeAmplitude:int = -1;
+			var target:Object = event.target;
+
+			// Case A: object under mouse cursor is likely an envelope line
+			envelope = (target as SpriteVisualElement);
+			if (envelope) {
+				envelopeIndex = _envelopes.indexOf(envelope)
+				if (envelopeIndex != -1) {
+					parameter = _parameters [envelopeIndex] || null;
+				}
+			} else {
+
+				// Case B: object under mouse cursor is likely an envelope node
+				node = (target as Sprite);
+				if (node) {
+					envelope = (node.parent as SpriteVisualElement);
+					if (envelope) {
+						envelopeIndex = _envelopes.indexOf(envelope);
+						if (envelopeIndex != -1) {
+							nodeIndex = (_envelopeNodes[envelopeIndex] as Array).indexOf(node);
+							parameter = _parameters[envelopeIndex];
+							if (parameter && nodeIndex != -1) {
+								var values:Array = parameter.values;
+								var valCounter:int = 0;
+								for (nodeTime = 0; nodeTime < values.length; nodeTime++) {
+									if (values[nodeTime] === undefined) {
+										continue;
+									}
+									if (valCounter == nodeIndex) {
+										nodeAmplitude = (values[nodeTime] as int);
+										break;
+									}
+									valCounter++;
+								}
+							}
+						}
+					}
+				}
+			}
+			return {
+				'parameter': parameter,
+				'envelope': envelope,
+				'envelopeIndex': envelopeIndex,
+				'node': node,
+				'nodeIndex': nodeIndex,
+				'nodeTime': nodeTime,
+				'nodeAmplitude': nodeAmplitude,
+				'target': target
+			};
+		}
+
+		/**
+		 * Selects given parameter, causing the corresponding envelope to change look and posture,
+		 * and updates the underlying data model, so that the outer world can respond to the change
+		 * as well.
+		 * @see `_onParameterChanged()`
+		 */
+		private function _selectParameter(param:Object):void {
+			if (!param.locked && param.type != 'outcome') {
+				param.selected = true;
+			}
+		}
+
+		/**
+		 * Event broadcasting end-point. Dispatches a "nodesChange" event, while keeping redundant
+		 * calls to a minimum
+		 */
+		private function _broadcastNodesChange(reason:String, nodesSnapshot:Array = null):void {
+			if (reason != _lastNodeChangeReason) {
+				var payload:Object = {};
+				payload[Constants.DATA_ITEM] = (nodesSnapshot || _takeNodesSnapshot());
+				dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.NODES_CHANGE, payload));
+				_lastNodeChangeReason = reason;
+			}
+		}
+
+		/**
+		 * Adds a node/value to the currently selected envelope/parameter, at the given "x" time and with the given
+		 * "y" amplitude. If a node already exists at the given time, nothing happens. If no envelope is currently
+		 * selected, nothing happens as well.
+		 *
+		 * As a side effect, adds a new entry to the selection chart associated with the currently selected envelope.
+		 */
+		private function _addNode(xAxis:int, yAxis:int):void {
+			if (_selectedParam) {
+				var paramValues:Array = _selectedParam.values;
+				if (paramValues[xAxis] === undefined) {
+					paramValues[xAxis] = yAxis;
+
+					// Update the relevant selection chart
+					var paramIndex:int = _parameters.indexOf(_selectedParam);
+					var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+					var nodeTime:int = -1;
+					var insertionIndex:int = 0;
+					for (nodeTime = 0; nodeTime < paramValues.length; nodeTime++) {
+						if (paramValues[nodeTime] === undefined) {
+							continue;
+						}
+						if (nodeTime == xAxis) {
+							break;
+						}
+						insertionIndex++;
+					}
+					selectionChart.splice(insertionIndex, 0, false);
+					_clearNodesSelection();
+					_addNodeToSelection(insertionIndex);
+					_broadcastNodesChange(NODE_ADD);
+				}
+			}
+		}
+
+		/**
+		 * Marks a node as selected, inside the selection chart of the currently selected parameter.
+		 */
+		private function _addNodeToSelection(nodeIndex:int):void {
+			_setNodeSelection(nodeIndex, true);
+		}
+
+		/**
+		 * Marks a node as not selected, inside the selection chart of the currently selected parameter.
+		 */
+		private function _removeNodeFromSelection(nodeIndex:int):void {
+			_setNodeSelection(nodeIndex, false);
+		}
+
+		/**
+		 * Sets selection status for a given node refered to by its ordinal index inside the selection
+		 * chart that corresponds to the currently selected envelope/parameter.
+		 */
+		private function _setNodeSelection(nodeIndex:int, selected:Boolean):void {
+			if (_selectedParam) {
+				var paramIndex:int = _parameters.indexOf(_selectedParam);
+				var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+				selectionChart [nodeIndex] = selected;
+			}
+		}
+
+		/**
+		 * Reverses selection status for a given node refered to by its ordinal index inside the selection
+		 * chart that corresponds to the currently selected envelope/parameter.
+		 */
+		private function _toggleNodeSelection(nodeIndex:int):void {
+			if (_selectedParam) {
+				var paramIndex:int = _parameters.indexOf(_selectedParam);
+				var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+				selectionChart [nodeIndex] = !selectionChart [nodeIndex];
+			}
+		}
+
+		/**
+		 * Returns `true` whether the selection chart that corresponds to the currently selected
+		 * envelope/parameter contains `true` at given `nodeIndex`, or `false` otherwise.
+		 */
+		private function _isNodeSelected(paramIndex:int, nodeIndex:int):Boolean {
+			if (_selectedParam) {
+				var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+				return (selectionChart [nodeIndex] as Boolean);
+			}
+			return false;
+		}
+
+		/**
+		 * Globally discards nodes selection, across all envelopes ("unselects" everything).
+		 */
+		private function _clearNodesSelection(chartIndex:int = -1):void {
+			var i:int;
+			var j:int;
+			var selectionChart:Array;
+			for (i = 0; i < _selectionCharts.length; i++) {
+				if (chartIndex != -1) {
+					if (i != chartIndex) {
+						continue;
+					}
+				}
+				selectionChart = (_selectionCharts[i] as Array);
+				if (selectionChart) {
+					for (j = 0; j < selectionChart.length; j++) {
+						selectionChart[j] = false;
+					}
+				}
+			}
+			_lastNodeIndex = -1;
+		}
+
+		/**
+		 * Executed when this component is added to stage, and the `stage` object becomes available
+		 * (so that Stage specific events can be bound).
+		 */
+		private function _bindStageListeners(event:Event):void {
+			removeEventListener(Event.ADDED_TO_STAGE, _bindStageListeners);
+			stage.addEventListener(MouseEvent.MOUSE_MOVE, _onGlobalMouseMove);
+			stage.addEventListener(MouseEvent.MOUSE_UP, _onGlobalMouseUp);
+		}
+
+		/**
+		 * Carries on selection of an incoming envelope node with respect to current objects
+		 * under the mouse cursor, current nodes selection and current keyboard accelerators
+		 * (e.g., SHIFT, CTRL) that were used when performing the mouse gesture.
+		 *
+		 * The behavior is as follows:
+		 * - a simple click unselects any other node in the current envelope/parameter, and
+		 *   selects the node that was clicked;
+		 * - a CTRL-click toggles the selection state of the clicked node (if it was selected,
+		 *   it is deselected, and vice-versa);
+		 * - a SHIFT-click acts upon a continguous range, from the last node clicked since
+		 *   SHIFT was depressed up to the current one. By default, SHIFT-clicking selects nodes;
+		 * - if ALT is depressed togheter with SHIFT, it modifies its action, so that
+		 *   SHIFT-clicking unselects nodes;
+		 * - if CTRL is depressed together with SHIFT, it modifies its action, so that
+		 *   SHIFT-clicking toggles nodes' selection.
+		 */
+		private function _handleNodeSelection(assetsUnderCursor:Object, generatorEvent:MouseEvent):void {
+			var currentEnvelopeIndex:int = assetsUnderCursor.envelopeIndex;
+			var currentNodeIndex:int = assetsUnderCursor.nodeIndex;
+			var useToggle:Boolean = generatorEvent.ctrlKey;
+			var useRange:Boolean = generatorEvent.shiftKey;
+			var useDefaultAction:Boolean = !generatorEvent.altKey;
+			if (!useRange && !useToggle && !_isNodeSelected(currentEnvelopeIndex, currentNodeIndex)) {
+				_clearNodesSelection(currentEnvelopeIndex);
+			}
+			var selectionRange:Array = [currentNodeIndex];
+			if (useRange && _lastNodeIndex != -1) {
+				selectionRange.push(_lastNodeIndex);
+				selectionRange.sort(Array.NUMERIC);
+				var startIndex:int = (selectionRange[0] as int) + 1;
+				var endIndex:int = selectionRange[1] as int;
+				var i:int;
+				for (i = startIndex; i < endIndex; i++) {
+					selectionRange.push(i);
+				}
+				selectionRange.sort();
+			}
+			var j:int;
+			for (j = 0; j < selectionRange.length; j++) {
+				var nodeIndexToChange:int = (selectionRange[j] as int);
+				if (useToggle) {
+					_toggleNodeSelection(nodeIndexToChange);
+				} else if (useDefaultAction) {
+					_addNodeToSelection(nodeIndexToChange);
+				} else {
+					_removeNodeFromSelection(nodeIndexToChange);
+				}
+			}
+			_lastNodeIndex = currentNodeIndex;
+		}
+
+		/**
+		 * Stores detailed information about currently selected nodes/values in the current envelope/parameter.
+		 * Returns `null` if no envelope/parameter is currently selected.
+		 */
+		private function _takeNodesSnapshot():Array {
+			if (!_selectedParam) {
+				return null;
+			}
+			var nodeTime:int;
+			var nodeAmplitude:int;
+			var isNodeSelected:Boolean;
+			var nodeIndex:int = 0;
+			var snapshot:Array = [];
+			var snapshotInfo:Object;
+			var paramIndex:int = _parameters.indexOf(_selectedParam);
+			var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+			var paramValues:Array = (_selectedParam.values as Array);
+			for (nodeTime = 0; nodeTime < paramValues.length; nodeTime++) {
+				if (paramValues[nodeTime] === undefined) {
+					continue;
+				}
+				isNodeSelected = (selectionChart[nodeIndex] as Boolean);
+				nodeAmplitude = paramValues[nodeTime];
+
+				snapshotInfo = {};
+				snapshotInfo[Constants.IS_SELECTED] = isNodeSelected;
+				snapshotInfo[Constants.NODE_INDEX] = nodeIndex;
+				snapshotInfo[Constants.NODE_TIME] = nodeTime;
+				snapshotInfo[Constants.NODE_AMPLITUDE] = nodeAmplitude;
+
+				snapshot.push(snapshotInfo);
+				nodeIndex++;
+			}
+			return snapshot;
+		}
+
+		/**
+		 * Sets up a global "drag session", so that all selected envelope nodes will follow the mouse cursor
+		 * (within certain boundaries) until the session is closed.
+		 */
+		private function _initializeDragSession(assetsUnderCursor:Object):void {
+			_boundarySets = [];
+
+			// Compute inner and outer dragging boundaries for each contiguous group of selected nodes
+			if (_selectedParam) {
+				var i:int;
+				var xAxis:int = -1;
+				var yAxis:int = -1;
+				var nodeIndex:int = 0;
+				var boundarySet:Object;
+				var innerArea:Rectangle;
+				var outerArea:Rectangle;
+				var isValueSelected:Boolean = false;
+				var paramValues:Array = (_selectedParam.values as Array);
+				var paramIndex:int = _parameters.indexOf(_selectedParam);
+				var selectionChart:Array = (_selectionCharts[paramIndex] as Array).concat();
+				var chartBoundaries:Rectangle = new Rectangle(MIN_GRIDLINES_X, MIN_GRIDLINES_Y, MAX_GRIDLINES_X, MAX_GRIDLINES_Y);
+				for (xAxis = 0; xAxis <= paramValues.length; xAxis++) {
+
+					// Skip not mapped timeline slots.
+					// NOTE: We move past the timeline's length by one position to
+					// collect the trailing boundary set, if any.
+					if (xAxis <= MAX_GRIDLINES_X && paramValues[xAxis] === undefined) {
+						continue;
+					}
+
+					// "Seal" current boundary set if it has all required information
+					if (boundarySet) {
+						if ((boundarySet.leftNeighbour || boundarySet.startsAtBorder) &&
+								boundarySet.selectedNodes &&
+								(boundarySet.rightNeighbour || boundarySet.endsAtBorder)) {
+							innerArea = new Rectangle;
+							innerArea.left = boundarySet.innerLeft;
+							innerArea.top = boundarySet.innerTop;
+							innerArea.right = boundarySet.innerRight;
+							innerArea.bottom = boundarySet.innerBottom;
+							boundarySet.innerArea = innerArea;
+							outerArea = new Rectangle;
+							outerArea.top = MIN_GRIDLINES_Y;
+							outerArea.bottom = MAX_GRIDLINES_Y;
+							outerArea.left = boundarySet.startsAtBorder ? MIN_GRIDLINES_X : boundarySet.leftNeighbour + 1;
+							outerArea.right = boundarySet.endsAtBorder ? MAX_GRIDLINES_X : boundarySet.rightNeighbour - 1;
+							boundarySet.outerArea = outerArea;
+							_boundarySets.push(boundarySet);
+							boundarySet = null;
+						}
+					}
+
+					// Initialize new boundary set if needed
+					if (!boundarySet) {
+						boundarySet = {};
+						boundarySet.innerLeft = MAX_GRIDLINES_X;
+						boundarySet.innerTop = MAX_GRIDLINES_Y;
+						boundarySet.innerRight = MIN_GRIDLINES_X;
+						boundarySet.innerBottom = MIN_GRIDLINES_Y;
+					}
+
+					// Save left neighbour (the unselected node the left of the first selected node)
+					isValueSelected = (selectionChart[nodeIndex] as Boolean);
+					if (!isValueSelected) {
+						if (!boundarySet.startsAtBorder && !boundarySet.selectedNodes) {
+							boundarySet.leftNeighbour = Math.max(MIN_GRIDLINES_X, xAxis);
+						}
+
+						// Save right neighbour (the unselected node to the right of the last selected node)
+						if (boundarySet.selectedNodes && !boundarySet.endsAtBorder && !boundarySet.rightNeighbour) {
+							boundarySet.rightNeighbour = Math.min(MAX_GRIDLINES_X, xAxis);
+
+							// Boundary sets could be conjunct, i.e., the right neighbour of a boundary set could be
+							// the left neighbour of the set following it. To address this situation we must pass
+							// through each proven "rightNeighbour" twice
+							if (xAxis < MAX_GRIDLINES_X) {
+								xAxis -= 1;
+								continue;
+							}
+						}
+					} else {
+
+						// Save selected node
+						if (!boundarySet.selectedNodes) {
+							boundarySet.selectedNodes = [];
+						}
+						(boundarySet.selectedNodes as Array).push({
+							"nodeIndex": nodeIndex,
+							"nodeTime": xAxis,
+							"nodeAmplitude": paramValues[xAxis]
+						});
+
+						// A boundary set "starts at border" when its first selected node is the
+						// first node of the envelope
+						if (xAxis == MIN_GRIDLINES_X) {
+							boundarySet.startsAtBorder = true;
+						}
+
+						// A boundary set "ends at border" when its last selected node is the
+						// last node of the envelope
+						if (xAxis == MAX_GRIDLINES_X) {
+							boundarySet.endsAtBorder = true;
+						}
+
+						// Update the area occupied by the selected nodes
+						if (xAxis < boundarySet.innerLeft) {
+							boundarySet.innerLeft = xAxis;
+						}
+						yAxis = (paramValues[xAxis] as int);
+						if (yAxis < boundarySet.innerTop) {
+							boundarySet.innerTop = yAxis;
+						}
+						if (xAxis > boundarySet.innerRight) {
+							boundarySet.innerRight = xAxis;
+						}
+						if (yAxis > boundarySet.innerBottom) {
+							boundarySet.innerBottom = yAxis;
+						}
+					}
+					nodeIndex++;
+				}
+
+				// Setup the initial `x` and `y` axes to use as reference when dragging
+				_anchorXAxis = assetsUnderCursor.nodeTime;
+				_anchorYAxis = assetsUnderCursor.nodeAmplitude;
+				_anchorNodeIndex = assetsUnderCursor.nodeIndex;
+				_inDragTooltipX = _anchorXAxis;
+				_inDragTooltipY = _anchorYAxis;
+
+				// Turn on dragging
+				_dragHelper = new Point;
+				_nowDragging = true;
+			}
+		}
+
+		/**
+		 * Dismisses the active, global "drag session", so that selected envelope nodes are not movable anymore.
+		 * Carries on any "post drag" operations required.
+		 */
+		private function _finalizeDragSession():void {
+
+			// Dispatch a "nodesChange" event
+			if (_actualDraggingOccurred) {
+				_broadcastNodesChange(DRAG_COMPLETE, _nodesSnapshot);
+			}
+
+			// Clear and reset relevant values
+			_nowDragging = false;
+			_actualDraggingOccurred = false;
+			_boundarySets = null;
+			_nodesSnapshot = null;
+			_anchorXAxis = 0;
+			_anchorYAxis = 0;
+			_anchorNodeIndex = -1;
+			_inDragTooltipX = 0;
+			_inDragTooltipY = 0;
+			_changedTime = 0;
+			_changedAmplitude = 0;
+			_rawDisplacementX = 0;
+			_rawDisplacementY = 0;
+			_dragHelper = null;
+		}
+
+		/**
+		 * Builds and displays a contextual menu with actions suitable for the selected node(s)
+		 */
+		private function _showNodeContextualMenu(x:Number, y:Number, touchedAssetsInfo:Object, nodesSnapshot:Array):void {
+
+			// Hide any menus that might be opened
+			hideActivePopupMenu();
+
+			// Populate the menu
+			var menuSrc : Array = [];
+
+			// Menu header; contains parameter name and number of selected nodes
+			var numSelectedNodes:int = 0;
+			var i:int;
+			var nodeInfo:Object;
+			for (i = 0; i < nodesSnapshot.length; i++) {
+				nodeInfo = (nodesSnapshot[i] as Object);
+				if (nodeInfo.isSelected) {
+					numSelectedNodes++;
+				}
+			}
+			var headerLabel:String = touchedAssetsInfo.parameter.name + ' (' +
+					numSelectedNodes + (numSelectedNodes > 1 ? ' nodes ' : ' node ') + 'selected)';
+			menuSrc.push ({"label": headerLabel, enabled : false});
+
+			// "Delete item" action
+			menuSrc.push ({
+				"label" : "Delete",
+				"data" : {
+					"command": COMMAND_DELETE_SELECTED_NODES,
+					"touchedAssetsInfo": touchedAssetsInfo,
+					"nodesSnapshot": nodesSnapshot
+				}
+			});
+
+			var menuCoords:Point = localToGlobal(new Point(x, y));
+			_popupMenu = Menu.createMenu (this, menuSrc, false);
+			_popupMenu.addEventListener (MenuEvent.ITEM_CLICK, _onContextMenuSelected);
+			_popupMenu.show (menuCoords.x, menuCoords.y);
+
+			// If the menu does not fit in the main view we close it, adjust its position and open it again.
+			// Unfortunately, we cannot measure a menu until it was open.
+			if (!_topContainerInThisWindow) {
+				_topContainerInThisWindow = this;
+				while (_topContainerInThisWindow && _topContainerInThisWindow.parent &&
+					_topContainerInThisWindow.parent != stage) {
+					_topContainerInThisWindow = _topContainerInThisWindow.parent;
+				}
+			}
+			var menuWidth : Number = _popupMenu.measuredWidth;
+			var menuHeight : Number = _popupMenu.measuredHeight;
+			var needsAdjustments : Boolean = false;
+			if (menuCoords.x + menuWidth >_topContainerInThisWindow.width) {
+				menuCoords.x = (_topContainerInThisWindow.width - menuWidth - Sizes.LARGE_GAP);
+				needsAdjustments = true;
+			}
+			if (menuCoords.y + menuHeight > _topContainerInThisWindow.height) {
+				menuCoords.y = _topContainerInThisWindow.height - menuHeight - Sizes.LARGE_GAP;
+				needsAdjustments = true;
+			}
+			if (needsAdjustments) {
+				_popupMenu.hide();
+				_popupMenu.show (menuCoords.x, menuCoords.y);
+			}
+		}
+
+		/**
+		 * Hides the pop-up menu if it might be showing
+		 */
+		public function hideActivePopupMenu():void {
+			if (_popupMenu) {
+				_popupMenu.hide();
+				_popupMenu.removeEventListener (MenuEvent.ITEM_CLICK, _onContextMenuSelected);
+				_popupMenu = null;
+			}
+		}
+
+		/**
+		 * Invalidates the previously shown tooltip, if any
+		 */
+		private function _discardExistingTooltip():void {
+			if (_lastTooltip) {
+				ToolTipManager.destroyToolTip(_lastTooltip);
+				_lastTooltip = null;
+			}
+		}
+
+		/**
+		 * Deletes selected nodes from the currently selected envelope
+		 */
+		private function _deleteSelectedNodes(operationDetail:Object):void {
+			var assetsInfo:Object = (operationDetail.touchedAssetsInfo as Object);
+			var nodesSnapshot:Array = (operationDetail.nodesSnapshot as Array);
+			var param:Object = (assetsInfo.parameter as Object);
+			var paramIndex:int = (assetsInfo.envelopeIndex as int);
+			var paramValues:Array = (param.values as Array);
+			var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+
+			// Filter out selected nodes. The first and last nodes must always be kept,
+			// whether they are selected or not. Also, their selection state must be
+			// left untouched.
+			paramValues.length = 0;
+			paramValues.length = (MAX_GRIDLINES_X + 1);
+			var node:Object;
+			var nodeIndex:int;
+			var nodeTime:int;
+			var nodeAmplitude:int;
+			var isSelected:Boolean;
+			var i:int;
+			for (i = 0; i < nodesSnapshot.length; i++) {
+				node = (nodesSnapshot[i] as Object);
+				nodeIndex = (node.nodeIndex as int);
+				nodeTime = (node.nodeTime as int);
+				nodeAmplitude = (node.nodeAmplitude as int);
+				isSelected = (node.isSelected as Boolean);
+				if (!isSelected || (i == 0 || i == nodesSnapshot.length - 1)) {
+					paramValues[nodeTime] = nodeAmplitude;
+					continue;
+				}
+				selectionChart.splice(nodeIndex, 1);
+			}
+			_broadcastNodesChange(NODES_DELETED, _takeNodesSnapshot());
+			_drawEnvelopes();
+		}
+
+		/**
+		 * Provides the text to be shown in the tooltip that is displayed above the chart while hovering,
+		 * clicking or dragging envelopes and nodes. Refers to the envelope/parameter under the mouse cursor if
+		 * applicable, or to the currently selected envelope/parameter, otherwise.
+		 */
+		private function _compileTooltipText(event:MouseEvent = null, withNodeInfo:Boolean = false):String {
+			var parameter:Object = _selectedParam;
+			if (event) {
+				var info:Object = _getAssetUnderMouseCursor(event);
+				parameter = (info.parameter || _selectedParam);
+			}
+			var paramProperties:Array = [
+				((parameter.type == "outcome") ? 'result ' : '') + 'envelope'
+			];
+			if (parameter.selected) {
+				paramProperties.push('selected');
+			}
+			if (parameter.locked && parameter.type != "outcome") {
+				paramProperties.push('locked');
+			}
+			var paramName:String = paramName = parameter.name;
+			if (parameter.type == "outcome") {
+				paramName = paramName.toLowerCase();
+			}
+			var tooltipText:String = paramName + '\n● ' + paramProperties.join(', ');
+			if (withNodeInfo) {
+				var nodeTime:int = (info.nodeTime as int);
+				var nodeAmplitude:int = (info.nodeAmplitude as int);
+				if (info.node != null) {
+					tooltipText += '\n● node time: ' + nodeTime + '%\n● node amplitude: ' + nodeAmplitude + '%';
+				}
+			}
+			return tooltipText;
+		}
+
+		/**
+		 * Changes the current tooltip's position and text, as to reflect the currently dragged node.
+		 * NOTES:
+		 *  During dragging sessions, a single tooltip object is recycled (for performance
+		 * considerations) updating its text and position as needed. Also, the tooltip will stop
+		 * following the mouse cursor and instead keep with the first touched node (the "anchor
+		 * node").
+		 */
+		private function _updateInDragTooltip():void {
+			var tooltipText:String = _compileTooltipText();
+			tooltipText += '\n● node time: ' + _changedTime + '%\n● node amplitude: ' + _changedAmplitude + '%';
+			var tooltipX:Number = (_xGridlineIndexToCoords[_inDragTooltipX] as Number);
+			var tooltipY:Number = (_yGridlineIndexToCoords[_inDragTooltipY] as Number);
+			var localPoint:Point = new Point(tooltipX, tooltipY);
+			var globalPoint:Point = localToGlobal(localPoint);
+			tooltipX = (globalPoint.x + TOOLTIP_X_OFFSET);
+			tooltipY = (globalPoint.y + TOOLTIP_Y_OFFSET);
+			if (!_lastTooltip) {
+				_lastTooltip = ToolTipManager.createToolTip(tooltipText, tooltipX, tooltipY, null, this);
+			} else {
+				_lastTooltip.x = tooltipX;
+				_lastTooltip.y = tooltipY;
+				_lastTooltip.text = tooltipText;
+			}
+			_fitTooltip();
+		}
+
+		/**
+		 * Executed when the component is initialized, but before any children are
+		 * measured or drawn.
+		 */
+		private function _onInitialize(event:FlexEvent):void {
+
+			// Build the char rasters to be used by labels
+			if (CHAR_RASTERS.length == 0) {
+				_buildDigitRasters();
+			}
+
+			// Register for "mouse up" and "mouse out" events at Stage level. These will act
+			// as triggers to stop any dragging initiated on envelope nodes.
+			addEventListener(Event.ADDED_TO_STAGE, _bindStageListeners);
+
+			// Register for "click" events at component level; these will act as triggers for
+			// invalidating the currently selected envelope nodes.
+			addEventListener(MouseEvent.CLICK, _onOutsideClick);
+
+			// Setup initial scroll and scale
+			_updateGridXAxis();
+			_updateGridYAxis();
+		}
+
+		/**
+		 * Executed when user selects a menu item from a contextual menu. Contextual menus are
+		 * invoked via a right-click on an envelope or one of its nodes
+		 */
+		private function _onContextMenuSelected (event:MenuEvent) : void {
+			var parentMenu : Menu = (event.target as Menu);
+			parentMenu.removeEventListener (MenuEvent.ITEM_CLICK, _onContextMenuSelected);
+			var menuItem:Object = event.item;
+			var payload:Object = (menuItem.data as Object);
+			var command:String = (payload.command as String);
+			switch (command) {
+				case COMMAND_DELETE_SELECTED_NODES:
+					_deleteSelectedNodes(payload);
+					break;
+			}
+		}
+
+		/**
+		 * Executed when the value of the horizontal scrollbar changes. Causes the
+		 * timeline to be offset with respect to the viewport.
+		 */
+		private function _onHorizontalScroll(event:Event):void {
+			var maxScroll:int = _maxXScroll;
+			if (maxScroll > 0) {
+				_horizontalScrollFactor = (hScroll.value / maxScroll);
+				_updateGridXAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		/**
+		 * Executed when the value of the vertical scrollbar changes. Causes the
+		 * amplitude scale to be offset with respect to the viewport.
+		 */
+		private function _onVerticalScroll(event:Event):void {
+			var maxScroll:int = _maxYScroll;
+			if (maxScroll > 0) {
+				_verticalScrollFactor = (vScroll.value / maxScroll);
+				_updateGridYAxis();
+				invalidateDisplayList();
+			}
+		}
+
+		/**
+		 * Executed when the value of the horizontal slider changes. Causes the timeline
+		 * scale to be altered accordingly, effectivelly fitting more or less vertical
+		 * gridlines into the viewport.
+		 */
+		private function _onHSliderChange(event:Event):void {
+			_timelineFactor = hSlider.value;
+			_updateMaxXScroll();
+			_updateGridXAxis();
+			invalidateDisplayList();
+		}
+
+		/**
+		 * Executed when the value of the vertical slider changes. Causes the amplitudes
+		 * scale to be altered accordingly, effectivelly fitting more or less horizontal
+		 * gridlines into the viewport.
+		 */
+		private function _onVSliderChange(event:Event):void {
+			_amplitudeFactor = vSlider.value;
+			_updateMaxYScroll();
+			_updateGridYAxis();
+			invalidateDisplayList();
+		}
+
+		/**
+		 * Executed when the horizontal scroll bar initializes
+		 */
+		private function _onHScrollbarInit(event:FlexEvent):void {
+			_updateMaxXScroll();
+		}
+
+		/**
+		 * Executed when the vertical scroll bar initializes
+		 */
+		private function _onVScrollbarInit(event:FlexEvent):void {
+			_updateMaxYScroll();
+		}
+
+		/**
+		 * Executed when the "Fit View" button is clicked. Sets minimum zoom on both
+		 * axes and redraws the chart.
+		 */
+		private function _onFitViewClick(event:MouseEvent):void {
+			_timelineFactor = 1;
+			_amplitudeFactor = 0;
+			_horizontalScrollFactor = 0;
+			_verticalScrollFactor = 0;
+			_updateMaxXScroll();
+			_updateMaxYScroll();
+			_updateGridXAxis();
+			_updateGridYAxis();
+
+			// TODO: Investigate why we need to call twice `_updateGrid...Axis()` and FIX.
+			_updateGridXAxis();
+			_updateGridYAxis();
+
+			invalidateDisplayList();
+		}
+
+		/**
+		 * Executed when one of the parameters changes. Each parameter Object must be wrapped into an
+		 * ObjectProxy or another class that can dispatch `PropertyChangeEvent` events in order for
+		 * this to work.
+		 */
+		private function _onParameterChanged(event:PropertyChangeEvent):void {
+			if (_ignoreParamChange) {
+				return;
+			}
+			var currentParam:Object = event.source;
+			if (event.kind == PropertyChangeEventKind.UPDATE) {
+				switch (event.property) {
+					case 'locked':
+						var parIndex:int = _parameters.indexOf(currentParam);
+						if (parIndex != -1) {
+							var envelope:Sprite = _envelopes[parIndex] as Sprite;
+							if (envelope) {
+								envelope.useHandCursor = envelope.buttonMode = !(event.newValue as Boolean);
+							}
+						}
+						break;
+					case 'selected':
+						if (event.newValue == true) {
+							currentParam.selected = true;
+							if (_selectedParam != currentParam) {
+								if (_selectedParam) {
+									_ignoreParamChange = true;
+									_selectedParam.selected = false;
+									_ignoreParamChange = false;
+								}
+								_selectedParam = currentParam;
+
+								// Dispatch a "parameterChange" event
+								var payload:Object = {};
+								payload[Constants.DATA_ITEM] = currentParam;
+								dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.PARAMETER_CHANGE, payload));
+
+								// Bring corresponding envelope to front
+								var paramIndex:int = _parameters.indexOf(currentParam);
+								var topEnvelope:SpriteVisualElement = (_envelopes[paramIndex] as SpriteVisualElement);
+								setElementIndex(topEnvelope, numElements - 1);
+							}
+						}
+						break;
+				}
+				_drawEnvelopes();
+			}
+		}
+
+		/**
+		 * Executed when user clicks one of the envelopes.
+		 */
+		private function _onEnvelopeClick(event:MouseEvent):void {
+			var assetInfo:Object = _getAssetUnderMouseCursor(event);
+			var currentParam:Object = assetInfo.parameter;
+			if (currentParam) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				_selectParameter(currentParam);
+			}
+		}
+
+		/**
+		 * Executed when user depresses the primary mouse button over one of an
+		 * envelope's nodes.
+		 */
+		private function _onEnvelopeNodeTouched(event:MouseEvent):void {
+			var assetInfo:Object = _getAssetUnderMouseCursor(event);
+			var node:Sprite = assetInfo.node;
+			var parameter:Object = assetInfo.parameter;
+			if (node && parameter) {
+				_selectParameter(parameter);
+				_handleNodeSelection(assetInfo, event);
+				_nodesSnapshot = _takeNodesSnapshot();
+				_initializeDragSession(assetInfo);
+				_drawEnvelopes();
+			}
+		}
+
+		/**
+		 * Executed while mouse moves anywhere over the stage; used in conjunction with
+		 * "_initializeDragSession()" and "_finalizeDragSession()" to adjust selected nodes'
+		 * time and amplitude based on current mouse local X,Y coordinates.
+		 */
+		private function _onGlobalMouseMove(event:MouseEvent):void {
+			if (!_selectedParam || !_nowDragging) {
+				return;
+			}
+
+			// Get the `x` and `y` axis indices that correspond to the current mouse
+			// cursor position.
+			_dragHelper.x = event.stageX;
+			_dragHelper.y = event.stageY;
+			var localCoords:Point = globalToLocal(_dragHelper);
+			var mouseX:Number = Math.round(localCoords.x);
+			var mouseY:Number = Math.round(localCoords.y);
+			var currXAxis:int = _xCoordsToGridlineIndex [mouseX];
+			var currYAxis:int = _yCoordsToGridlineIndex [mouseY];
+
+			// Not every pixel is reported by a MOUSE_MOVE event, some are skipped;
+			// if the skipped X or Y mouse coordinate happens to be precisely the one
+			// that resolves to an X or Y axis, then that axis index will be skipped too.
+			// In effect, this produces a jagged move while dragging. To adress this
+			// situation, we will "look back" for a corresponding axis index. The gap
+			// size used when drawing the grid will make for a reasonable search window.
+			// Tests have proven that this yeld a much more fluid move for the draggen
+			// nodes.
+			var xLookbackSteps:int = _xGapSize;
+			while (currXAxis == 0 && xLookbackSteps > 0) {
+				mouseX -= 1;
+				currXAxis = _xCoordsToGridlineIndex [mouseX];
+				xLookbackSteps--;
+			}
+			var yLookBackSteps:int = _yGapSize;
+			while (currYAxis == 0 && yLookBackSteps > 0) {
+				mouseY -= 1;
+				currYAxis = _yCoordsToGridlineIndex [mouseY];
+				yLookBackSteps--;
+			}
+
+			// Establish the raw displacement to be applied to the selected nodes, on both axes
+			if (currXAxis == 0 && currYAxis == 0) {
+				return;
+			}
+			if (currXAxis != 0) {
+				_rawDisplacementX = (currXAxis - _anchorXAxis);
+			}
+			if (currYAxis != 0) {
+				_rawDisplacementY = (currYAxis - _anchorYAxis);
+			}
+			if (_rawDisplacementX == 0 && _rawDisplacementY == 0) {
+				return;
+			}
+
+			// Ensure that each contiguous groups of selected nodes is only allowed to move
+			// within its drag boundaries
+			var i:int;
+			var i2:int;
+			var boundarySet:Object;
+			var outerArea:Rectangle;
+			var innerArea:Rectangle;
+			var selectedNodes:Array;
+			var displacementX:int = _rawDisplacementX;
+			var displacementY:int = _rawDisplacementY;
+			var selectedNode:Object;
+			var selNodeIndex:int;
+			var originalTime:int;
+			var originalAmplitude:int;
+			for (i = 0; i < _boundarySets.length; i++) {
+				boundarySet = (_boundarySets[i] as Object);
+				innerArea = boundarySet.innerArea.clone();
+				outerArea = boundarySet.outerArea.clone();
+				selectedNodes = (boundarySet.selectedNodes as Array);
+				innerArea.offset(displacementX, displacementY);
+
+				// Adjust displacement with respect to alowable drag area
+				if (innerArea.left < outerArea.left) {
+					displacementX += (outerArea.left - innerArea.left);
+				}
+				if (innerArea.right > outerArea.right) {
+					displacementX -= (innerArea.right - outerArea.right);
+				}
+				if (innerArea.top < outerArea.top) {
+					displacementY += (outerArea.top - innerArea.top);
+				}
+				if (innerArea.bottom > outerArea.bottom) {
+					displacementY -= (innerArea.bottom - outerArea.bottom);
+				}
+
+				// Apply adjustments to related selected nodes. Also, update the
+				// horizontal and vertical axes to be used by the tooltip that provides
+				// information during dragging.
+				for (i2 = 0; i2 < selectedNodes.length; i2++) {
+					selectedNode = (selectedNodes[i2] as Object);
+					selNodeIndex = (selectedNode.nodeIndex as int);
+					isFirstNode = (selNodeIndex == 0);
+					isLastNode = (selNodeIndex == _nodesSnapshot.length - 1);
+					originalTime = (selectedNode.nodeTime as int);
+					originalAmplitude = (selectedNode.nodeAmplitude as int);
+					if (!isFirstNode && !isLastNode) {
+						_changedTime = (originalTime + displacementX);
+						_nodesSnapshot[selNodeIndex].nodeTime = _changedTime;
+					} else {
+						_changedTime = _nodesSnapshot[selNodeIndex].nodeTime;
+					}
+					_changedAmplitude = (originalAmplitude + displacementY);
+					_nodesSnapshot[selNodeIndex].nodeAmplitude = _changedAmplitude;
+					if (_anchorNodeIndex == selNodeIndex) {
+						_inDragTooltipX = (!isFirstNode && !isLastNode) ? _anchorXAxis + displacementX : _anchorXAxis;
+						_inDragTooltipY = (_anchorYAxis + displacementY);
+					}
+				}
+			}
+
+			// Redraw the envelope: discard old nodes
+			var paramValues:Array = (_selectedParam.values as Array);
+			paramValues.length = 0;
+			paramValues.length = (MAX_GRIDLINES_X + 1);
+
+			// Redraw the envelope: re-add all nodes, with changes applied
+			var i3:int;
+			var time:int;
+			var nodeInfo:Object;
+			var paramIndex:int = _parameters.indexOf(_selectedParam);
+			var selectionChart:Array = (_selectionCharts[paramIndex] as Array);
+			var nodeSelected:Boolean;
+			var isFirstNode:Boolean;
+			var isLastNode:Boolean;
+			for (i3 = 0; i3 < _nodesSnapshot.length; i3++) {
+				isFirstNode = (i3 == 0);
+				isLastNode = (i3 == _nodesSnapshot.length - 1);
+				nodeInfo = (_nodesSnapshot[i3] as Object);
+				nodeSelected = nodeInfo.isSelected;
+				time = isFirstNode ? MIN_GRIDLINES_X : isLastNode ? MAX_GRIDLINES_Y : nodeInfo.nodeTime;
+				paramValues[time] = nodeInfo.nodeAmplitude;
+				selectionChart[nodeInfo.nodeIndex] = nodeInfo.isSelected;
+			}
+
+			// Flag the operation as having produced changes
+			_actualDraggingOccurred = true;
+
+			// Redraw the envelope: plot the lines and nodes again
+			_drawEnvelopes();
+
+			// Make sure the displayed tooltip relates to the selection being dragged
+			_updateInDragTooltip();
+		}
+
+		/**
+		 * Executed when user releases the primary mouse button anywhere
+		 * over the stage, or he moves the mouse outside the stage with the
+		 * mouse button still depressed.
+		 */
+		private function _onGlobalMouseUp(event:MouseEvent):void {
+			_discardExistingTooltip();
+			if (_nowDragging) {
+				_finalizeDragSession();
+			}
+		}
+
+		/**
+		 * Executed when user clicks inside this component, but anywhere
+		 * outside an envelope.
+		 */
+		private function _onOutsideClick(event:MouseEvent):void {
+
+			// Ignore clicks outside the chart perimeter
+			var leftBoundary:Number = (_leftGutter + _trackThickness);
+			var topBoundary:Number = (_trackThickness + _borderThickness * 2);
+			var chartHeight:Number = (unscaledHeight - _trackThickness * 2 - _borderThickness * 4 -
+					_bottomGutter - _scrollbarThickness - _viewControlsPadding);
+			var chartWidth:Number = (unscaledWidth - leftBoundary - _scrollbarThickness - _viewControlsPadding);
+			var chartArea:Rectangle = new Rectangle(leftBoundary, topBoundary, chartWidth, chartHeight);
+			var clickArea:Rectangle = new Rectangle(event.localX, event.localY, 1, 1);
+
+			// Clear current nodes selection
+			if (clickArea.intersects(chartArea)) {
+				_clearNodesSelection();
+				_drawEnvelopes();
+				_broadcastNodesChange(NODES_UNSELECTED);
+			}
+		}
+
+		/**
+		 * Executed when user right-clicks one of the envelopes.
+		 */
+		private function _onEnvelopeRightClick(event:MouseEvent):void {
+			// TODO: implement
+		}
+
+		/**
+		 * Executed when user right-clicks one of the envelopes.
+		 * NOTES:
+		 * - Nothing will happen when locked envelopes' nodes are right-clicked;
+		 * - if an envelope that is currently inactive is selected, it will be
+		 *   selected/made active;
+		 * - If an unselected node is clicked, existing selection on that node's
+		 *   envelope (if any) is cleared, and the right-clicked node is selected
+		 *   instead. Actions in the menu will be executed against that node
+		 *   alone.
+		 * - If a selected node is selected, current selection is not altered;
+		 *   actions in the menu will be executed against all currently selected
+		 *   nodes.
+		 */
+		private function _onEnvelopeNodeRightClicked(event:MouseEvent):void {
+			var info:Object = _getAssetUnderMouseCursor(event);
+			var parameter:Object = (info.parameter as Object);
+			if (!parameter.locked && parameter.type != 'outcome') {
+				_selectParameter(parameter);
+				var paramIndex:int = (info.envelopeIndex as int);
+				var nodeIndex:int = (info.nodeIndex as int);
+				if (!_isNodeSelected(paramIndex, nodeIndex)) {
+					_clearNodesSelection(paramIndex);
+					_addNodeToSelection(nodeIndex);
+					_broadcastNodesChange(NODE_RIGHT_CLICK);
+				}
+				_drawEnvelopes();
+				var mouseX:Number = event.stageX;
+				var mouseY:Number = event.stageY;
+				_showNodeContextualMenu(mouseX, mouseY, info, _takeNodesSnapshot());
+			}
+		}
+
+		/**
+		 * Executed when user double-clicks one of the envelopes.
+		 */
+		private function _onEnvelopeDblClick(event:MouseEvent):void {
+			var info:Object = _getAssetUnderMouseCursor(event);
+			var parameter:Object = info.parameter;
+			if (parameter && !parameter.locked && parameter.type != 'outcome') {
+				var x:Number = event.localX;
+				var y:Number = event.localY;
+				var coord:int;
+				var xAxis:int = -1;
+				var yAxis:int = -1;
+
+				// Find X axis for new point to be added
+				for (coord = 0; coord < _xCoordsToGridlineIndex.length; coord++) {
+					if (_xCoordsToGridlineIndex[coord] === undefined) {
+						continue;
+					}
+					if (coord >= x) {
+						xAxis = (_xCoordsToGridlineIndex[coord] as int);
+						break;
+					}
+				}
+
+				// Find Y axis for new point to be added
+				for (coord = 0; coord < _yCoordsToGridlineIndex.length; coord++) {
+					if (_yCoordsToGridlineIndex[coord] === undefined) {
+						continue;
+					}
+					if (coord >= y) {
+						yAxis = (_yCoordsToGridlineIndex[coord] as int);
+						break;
+					}
+				}
+
+				// If we found a valid point based on the X,Y coordinates user clicked on, we add it
+				if (xAxis != -1 && yAxis != -1) {
+					_clearNodesSelection();
+					_addNode(xAxis, yAxis);
+					_drawEnvelopes();
+				}
+			}
+		}
+
+		/**
+		 * Executed when user hovers one of the envelopes, outside any of its nodes.
+		 * Shows a tooltip with information about the envelope under cursor (and node, if any).
+		 */
+		private function _onEnvelopeMouseOver(event:MouseEvent):void {
+
+			// Discard any running timeouts, since we are not in the situation of hiding tooltips anymore
+			if (_tooltipTimeoutTimer) {
+				_tooltipTimeoutTimer.stop();
+				_tooltipTimeoutTimer = null;
+			}
+
+			// Outside dragging sessions, one new tooltip is constructed (and the old one is discarded)
+			// every time an envelope or node is being hovered.
+			if (!_nowDragging) {
+				_discardExistingTooltip();
+				var tooltipText:String = _compileTooltipText(event, true);
+				_lastTooltip = ToolTipManager.createToolTip(tooltipText,
+						event.stageX + TOOLTIP_X_OFFSET,
+						event.stageY + TOOLTIP_Y_OFFSET, null, this);
+				_fitTooltip();
+			}
+		}
+
+		/**
+		 * Executed when user moves the mouse cursor outside one of the envelopes,
+		 * after previously hovering it.
+		 */
+		private function _onEnvelopeMouseOut(event:MouseEvent):void {
+			if (!_nowDragging) {
+				if (!_tooltipTimeoutTimer) {
+					_tooltipTimeoutTimer = new Timer(TOOLTIP_MOUSE_OUT_DELAY, 1);
+					_tooltipTimeoutTimer.addEventListener(TimerEvent.TIMER_COMPLETE, _onTooltipTimeout);
+					_tooltipTimeoutTimer.start();
+				}
+			}
+		}
+
+		/**
+		 * Executed when the timeout timer in charge for discarding the current tooltip runs out.
+		 */
+		private function _onTooltipTimeout(event:TimerEvent):void {
+			_tooltipTimeoutTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, _onTooltipTimeout);
+			_tooltipTimeoutTimer = null;
+			_discardExistingTooltip();
+		}
+
+		/**
+		 * Ensures that it stays within the current component's boundaries.
+		 */
+		private function _fitTooltip():void {
+			if (_lastTooltip) {
+				var tooltipBounds:Rectangle = _lastTooltip.getBounds(stage);
+				var componentBounds:Rectangle = this.getBounds(stage);
+
+				// Our tooltip is always anchored at top left, so we only need to observe
+				// and adjust its bottom right corner position
+				if (tooltipBounds.right > componentBounds.right) {
+					_lastTooltip.x -= (tooltipBounds.right - componentBounds.right);
+				}
+				if (tooltipBounds.bottom > componentBounds.bottom) {
+					_lastTooltip.y -= (tooltipBounds.bottom - componentBounds.bottom);
+				}
+			}
+		}
+		]]>
+	</fx:Script>
+	
+	<!--  SCROLLING AND ZOOMING CONTROLLS -->
+	
+	<!-- Global Viewport Reset Button -->
+	<s:Button id="fitViewButton" skinClass="{FitView}" toolTip="Fit view"
+			  click="_onFitViewClick (event)" useHandCursor="true" buttonMode="true" />
+	
+	<!-- Horizontal scale slider -->
+	<s:HSlider id="hSlider" minimum="0" maximum="1" stepSize="0.01"
+			   value="{timelineFactor}" toolTip="Resize timeline" showDataTip="false"
+			   change="_onHSliderChange (event)" creationComplete="_onHSliderChange (event)"/>
+	
+	<!-- Horizontal Scrollbar -->
+	<s:HScrollBar id="hScroll" minimum="0" maximum="{_maxXScroll}" 
+				  change="_onHorizontalScroll (event)" 
+				  creationComplete="_onHorizontalScroll (event)"
+				  initialize="_onHScrollbarInit (event)"/>
+	
+	<!-- Vertical scale slider -->
+	<s:VSlider id="vSlider" minimum="0" maximum="1" stepSize="0.01"
+			   value="{amplitudeFactor}" toolTip="Resize amplitude scale" 
+			   showDataTip="false" change="_onVSliderChange (event)" creationComplete="_onVSliderChange (event)" />
+
+	<!-- Vertical Scrollbar -->
+	<s:VScrollBar id="vScroll" minimum="0" maximum="{_maxYScroll}"
+				  change="_onVerticalScroll (event)" 
+				  creationComplete="_onVerticalScroll (event)"
+				  initialize="_onVScrollbarInit (event)" />
+	
+</s:Group>

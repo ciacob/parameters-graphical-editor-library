@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         xmlns:components="eu.claudius.iacob.ui.components.*"
+         minWidth="100"
+         minHeight="100"
+         xmlns:envelopeeditor="eu.claudius.iacob.ui.components.envelopeeditor.*">
+
+    <fx:Metadata>
+        [Event(name="parameterChange", type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+        [Event(name="nodesChange", type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+        [Event(name="colorChange", type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+        [Event(name="visibilityChange", type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+        [Event(name="lockChange", type="eu.claudius.iacob.ui.components.ParameterChangeEvent")]
+    </fx:Metadata>
+
+    <fx:Script>
+		<![CDATA[
+        import eu.claudius.iacob.maidens.Sizes;
+        import eu.claudius.iacob.maidens.skins.ActualCurveTBSkin;
+        import eu.claudius.iacob.maidens.skins.IdealCurveTBSkin;
+        import eu.claudius.iacob.maidens.skins.ReverseVisibilitySkin;
+        import eu.claudius.iacob.maidens.skins.ReverseLockSkin;
+
+        import mx.events.CloseEvent;
+        import mx.events.FlexEvent;
+        import mx.managers.PopUpManager;
+        import mx.utils.ObjectProxy;
+
+        // Style
+        [Bindable]
+        public var listCellWidth:int = 35;
+        [Bindable]
+        public var itemHeight:Number = 33;
+        [Bindable]
+        public var numVisibleItems:int = 5;
+
+        // Title of the component
+        [Bindable]
+        public var headerText:String = 'Envelopes Editor';
+
+        // The items to be shown in the list
+        [Bindable]
+        public var dataProvider:Object = {};
+
+        // Whether to show the "Ideal Curve Toggle" Button
+        [Bindable]
+        public var showIdealCurveToggle:Boolean;
+
+        // Whether to show the "Actual Curve Toggle" Button
+        [Bindable]
+        public var showActualCurveToggle:Boolean;
+
+        // The text that populates the footer area of the component
+        [Bindable]
+        private var _footerText:String = 'Hint: to add a node, double-click an envelope. Single-click to select nodes (use SHIFT, CTRL and/or ALT to refine). Right-click a node for deletion.';
+
+        // The text that displays information about the selected envelope or point
+        [Bindable]
+        private var _pointControlsText:String = 'No point(s) selected';
+
+        // Flag to be raised if ideal curves should be visible in the chart
+        [Bindable]
+        private var _idealCurveShown:Boolean = true;
+
+        // Flag to be raised if actual curves should be visible in the chart
+        [Bindable]
+        private var _actualCurveShown:Boolean = true;
+
+        // Flag to be raised if the stepper for changing the value of the currently selected
+        // envelope or point(s) should be enabled
+        [Bindable]
+        private var _currValEditorEnabled:Boolean = false;
+
+        // Reference to the floating color picker that opens in response to the user clicking
+        // the colored rectangle of a list item
+        private var _colorPickerPopup:ColorPickerPopUp;
+
+        // Stores the horizontal coordinate the floating color picker should (ideally) be opened at
+        private var _popupX:Number;
+
+        // Stores the vertical coordinate the floating color picker should (ideally) be opened at
+        private var _popupY:Number;
+
+        /**
+         * Executed when the "Ideal Curve" toggle button changes state. Causes all ideal curves
+         * to be drawn in the chart or not, based on the state of the button. As a side effect,
+         * causes several controls that deal with editing the ideal curve to be enabled or not.
+         */
+        private function _onIdealCurveToggle(event:Event):void {
+            if (dataProvider) {
+                _idealCurveShown = !_idealCurveShown;
+                var parameters:Array = (dataProvider.parameters as Array);
+                var i:int;
+                var parameter:Object;
+                for (i = 0; i < parameters.length; i++) {
+                    parameter = (parameters[i] as Object);
+                    if (parameter.type != 'outcome') {
+                        parameter.visible = _idealCurveShown;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Executed when the "Actual Curve" toggle button changes state. Causes all actual curves
+         * to be drawn in the chart or not, based on the state of the button.
+         */
+        private function _onActualCurveToggle(event:Event):void {
+            if (dataProvider) {
+                _actualCurveShown = !_actualCurveShown;
+                var parameters:Array = (dataProvider.parameters as Array);
+                var i:int;
+                var parameter:Object;
+                for (i = 0; i < parameters.length; i++) {
+                    parameter = (parameters[i] as Object);
+                    if (parameter.type == 'outcome') {
+                        parameter.visible = _actualCurveShown;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Executed when the "Invert visibility" button is clicked. Makes visible parameter
+         * envelopes that were previously hidden, and viceversa.
+         */
+        private function onInvertVisibilityClicked(event:MouseEvent):void {
+            if (dataProvider) {
+                var parameters:Array = (dataProvider.parameters as Array);
+                var i:int;
+                var parameter:Object;
+                for (i = 0; i < parameters.length; i++) {
+                    parameter = (parameters[i] as Object);
+
+                    // We won't touch envelopes that were globally turned off (by taxonomy)
+                    if (!_idealCurveShown && parameter.type != 'outcome') {
+                        continue;
+                    }
+                    if (!_actualCurveShown && parameter.type == 'outcome') {
+                        continue;
+                    }
+                    parameter.visible = !parameter.visible;
+                }
+            }
+        }
+
+        /**
+         * Executed when the "Invert lock" button is clicked. Locks parameter envelopes that were
+         * previously editable, and vice versa.
+         */
+        private function _onInvertLockClicked(event:MouseEvent):void {
+            if (dataProvider) {
+                var parameters:Array = (dataProvider.parameters as Array);
+                var i:int;
+                var parameter:Object;
+                for (i = 0; i < parameters.length; i++) {
+                    parameter = (parameters[i] as Object);
+                    if (parameter.type != 'outcome') {
+                        parameter.locked = !parameter.locked;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Executed when user clicks an active (i.e., not locked) envelope in the
+         * envelopes editor. The event contains information about the parameter associated
+         * with the envelope.
+         */
+        private function _onParameterChange(event:ParameterChangeEvent):void {
+            dispatchEvent(event);
+        }
+
+        /**
+         * Executed when user selects, unselects, adds, removes or edits (e.g., by
+         * dragging) at least one node in the envelope editor.
+         */
+        private function _onNodesChange(event:ParameterChangeEvent):void {
+            dispatchEvent(event);
+        }
+
+        /**
+         * Executed when user clicks the colored rectangle of a list item.
+         * The event contains information about the data item associated to the list item
+         * and the stage relative coordinates where the click has occurred. Opens a floating
+         * color picker for the user to choose a new color.
+         */
+        private function _onListSwatchClick(event:ParameterChangeEvent):void {
+            if (_colorPickerPopup) {
+                _onSwatchClosed();
+            }
+            if (graphicalEditor) {
+                graphicalEditor.hideActivePopupMenu();
+            }
+            var payload:Object = event.data;
+            var dataItem:ObjectProxy = payload[Constants.DATA_ITEM] as ObjectProxy;
+            _popupX = payload[Constants.STAGE_X] as Number;
+            _popupY = payload[Constants.STAGE_Y] as Number;
+            _colorPickerPopup = ColorPickerPopUp(PopUpManager.createPopUp(this, ColorPickerPopUp, true));
+            _colorPickerPopup.addEventListener(CloseEvent.CLOSE, _onSwatchClosed);
+            _colorPickerPopup.addEventListener(ParameterChangeEvent.COLOR_CHANGE, _onColorChanged);
+            _colorPickerPopup.addEventListener(FlexEvent.CREATION_COMPLETE, _onSwatchReady);
+            _colorPickerPopup.x = _popupX;
+            _colorPickerPopup.y = _popupY;
+            _colorPickerPopup.parentDataItem = dataItem;
+        }
+
+        /**
+         * Executed when user clicks the "visibility" checkbox of a list item.
+         * The event contains information about the data item associated to the list item.
+         */
+        private function _onListVisibilityClick(event:ParameterChangeEvent):void {
+            dispatchEvent(event);
+        }
+
+        /**
+         * Executed when user clicks the "lock" checkbox of a list item.
+         * The event contains information about the data item associated to the list item.
+         */
+        private function _onListLockClick(event:ParameterChangeEvent):void {
+            dispatchEvent(event);
+        }
+
+        /**
+         * Executed when user clicks the "x" button of the floating color picker that opens in response
+         * to clicking the colored rectangle of a list item.
+         */
+        private function _onSwatchClosed(event:CloseEvent = null):void {
+            _colorPickerPopup.removeEventListener(ParameterChangeEvent.COLOR_CHANGE, _onColorChanged);
+            PopUpManager.removePopUp(_colorPickerPopup);
+            _colorPickerPopup = null;
+        }
+
+        /**
+         * Executed when the color swatch floating panel has been built and measured, but before it
+         * is shown. Used to keep the popup within its parent component bounds.
+         */
+        private function _onSwatchReady(event:FlexEvent):void {
+            _colorPickerPopup.removeEventListener(FlexEvent.CREATION_COMPLETE, _onSwatchReady);
+            var componentBounds:Rectangle = getBounds(stage);
+            var popupBounds:Rectangle = _colorPickerPopup.getBounds(stage);
+            if (popupBounds.right > componentBounds.right) {
+                _popupX -= (popupBounds.right - componentBounds.right);
+            }
+            if (popupBounds.bottom > componentBounds.bottom) {
+                _popupY -= (popupBounds.bottom - componentBounds.bottom);
+            }
+            _colorPickerPopup.x = _popupX;
+            _colorPickerPopup.y = _popupY;
+        }
+
+        /**
+         * Executed when a new color has been selected in the ColorPicker pop-up.
+         * The event contains information about the data item associated to the list item that opened
+         * the popup. The data item contains the updated color code as an unsigned integer.
+         */
+        private function _onColorChanged(event:ParameterChangeEvent):void {
+            dispatchEvent(event);
+        }
+        ]]>
+	</fx:Script>
+
+    <!-- [CONTENT] -->
+    <s:Group top="0" bottom="0" left="{Sizes.LARGE_GAP}" right="{Sizes.LARGE_GAP}">
+
+        <s:layout>
+            <s:VerticalLayout horizontalAlign="justify" gap="{Sizes.LARGE_GAP}"/>
+        </s:layout>
+
+        <!-- [FIRST HEADER] -->
+        <mx:Label text="{headerText}" fontWeight="bold"/>
+        <!-- [/FIRST HEADER] -->
+
+        <!-- [BODY] -->
+        <s:Group height="100%">
+            <s:layout>
+                <s:VerticalLayout gap="{Sizes.LARGE_GAP}"/>
+            </s:layout>
+
+            <!-- Envelope Editor -->
+            <envelopeeditor:EnvelopeEditor
+                    id="graphicalEditor"
+                    height="{height - graphicalEditor.y - parametersList.height - listHeader.height - editorHelpText.height - Sizes.LARGE_GAP * 6}"
+                    width="{width - Sizes.LARGE_GAP}"
+                    parameters="{dataProvider.parameters}"
+                    parameterChange="_onParameterChange (event)"
+                    nodesChange="_onNodesChange (event)"/>
+
+            <!-- [INFO] -->
+            <!-- Info Label -->
+            <mx:Text id="editorHelpText"
+                     width="{width - Sizes.LARGE_GAP}"
+                     text="{_footerText}"
+                     textAlign="left"
+                     paddingLeft="0"
+                     paddingRight="0"/>
+            <!-- [/INFO] -->
+
+            <!-- Vertical Separator -->
+            <s:Group height="0" />
+
+            <!-- LIST SECTION: Envelopes Manager -->
+            <s:Group id="editorList"
+                     width="{width - Sizes.LARGE_GAP}">
+                <s:layout>
+                    <s:VerticalLayout horizontalAlign="justify" gap="{Sizes.LARGE_GAP * 0.5}"/>
+                </s:layout>
+
+                <!-- Header of Envelopes Manager -->
+                <s:Group id="listHeader">
+                    <s:layout>
+                        <s:HorizontalLayout verticalAlign="middle" gap="{Sizes.LARGE_GAP}"/>
+                    </s:layout>
+                    <mx:Label text="Envelopes Manager" fontWeight="bold"/>
+
+                    <!-- Separator -->
+                    <s:Group width="100%"/>
+
+                    <!-- Ideal Curve Toggle Button -->
+                    <s:ToggleButton width="{Sizes.SECONDARY_UI_BUTTON_SIZE}" height="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                                    useHandCursor="true" buttonMode="true"
+                                    visible="{showIdealCurveToggle}"
+                                    includeInLayout="{showIdealCurveToggle}"
+                                    skinClass="{IdealCurveTBSkin}"
+                                    selected="{_idealCurveShown}"
+                                    change="_onIdealCurveToggle(event)"
+                                    toolTip="Toggle envelopes"/>
+
+                    <!-- Actual Curve Toggle Button -->
+                    <s:ToggleButton width="{Sizes.SECONDARY_UI_BUTTON_SIZE}" height="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                                    useHandCursor="true" buttonMode="true"
+                                    visible="{showActualCurveToggle}"
+                                    includeInLayout="{showActualCurveToggle}"
+                                    skinClass="{ActualCurveTBSkin}"
+                                    selected="{_actualCurveShown}"
+                                    change="_onActualCurveToggle(event)"
+                                    toolTip="Toggle outcome"/>
+
+                    <!-- Invert visibility button -->
+                    <s:Button toolTip="Invert visibility" width="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                              useHandCursor="true" buttonMode="true"
+                              height="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                              click="onInvertVisibilityClicked (event)"
+                              skinClass="{ReverseVisibilitySkin}"
+                              enabled="{_idealCurveShown || _actualCurveShown}"
+                    />
+
+                    <!-- Invert lock button -->
+                    <s:Button toolTip="Invert lock" width="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                              useHandCursor="true" buttonMode="true"
+                              height="{Sizes.SECONDARY_UI_BUTTON_SIZE}"
+                              click="_onInvertLockClicked (event)"
+                              enabled="{_idealCurveShown || _actualCurveShown}"
+                              skinClass="{ReverseLockSkin}"
+                    />
+                </s:Group>
+
+                <!-- Vertical Separator -->
+                <s:Group height="0" />
+
+                <!-- Parameters List -->
+                <components:ParametersList id="parametersList"
+                                           width="100%"
+                                           height="{itemHeight * numVisibleItems + (numVisibleItems - 1)}"
+                                           itemHeight="{itemHeight}"
+                                           contentPadding="{Sizes.LARGE_GAP}"
+                                           listRightGutter="{Sizes.LARGE_GAP * 3 + listCellWidth * 3}"
+                                           parameters="{dataProvider.parameters}"
+                                           swatchClick="_onListSwatchClick (event)"
+                                           visibilityChange="_onListVisibilityClick (event)"
+                                           lockChange="_onListLockClick (event)"/>
+            </s:Group>
+
+        </s:Group>
+        <!-- [/BODY] -->
+
+    </s:Group>
+    <!-- [/CONTENT] -->
+
+</s:Group>

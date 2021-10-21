@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                selected="{data.selected}"
+                height="{data.itemHeight}"
+                initialize="_onInitialize (event)">
+
+    <s:states>
+        <mx:State name="normal"/>
+        <mx:State name="hovered"/>
+        <mx:State name="down"/>
+        <mx:State name="selected"/>
+        <mx:State name="downAndSelected"/>
+    </s:states>
+
+    <fx:Script>
+		<![CDATA[
+        import eu.claudius.iacob.maidens.Colors;
+        import eu.claudius.iacob.maidens.skins.CheckBoxSkin;
+        import eu.claudius.iacob.maidens.skins.EditabilityToggleSkinSelected;
+        import eu.claudius.iacob.maidens.skins.VisibilityToggleSkin;
+        import eu.claudius.iacob.maidens.skins.EditabilityToggleSkin;
+        import eu.claudius.iacob.maidens.skins.VisibilityToggleSkinSelected;
+
+        import mx.events.FlexEvent;
+
+        private static const OUTCOME_LABEL_ALPHA:Number = 0.75;
+        private static const UNAVAILABLE_LABEL_ALPHA:Number = 0.5;
+
+        /**
+         * Prevents selecting an item that has been set as invisible or locked in the editor.
+         */
+        override public function set selected(status:Boolean):void {
+            if (data) {
+                var interceptedStatus:Boolean = (!status ? false : data.visible && !data.locked);
+                super.selected = interceptedStatus;
+            }
+        }
+
+        /**
+         * Executed when the "color swatch" cell of this item is clicked.
+         * Dispatches a specific event on the parent list.
+         */
+        private function _onSwatchClick(event:MouseEvent):void {
+            var payload:Object = {};
+            payload[Constants.DATA_ITEM] = data;
+            payload[Constants.STAGE_X] = event.stageX;
+            payload[Constants.STAGE_Y] = event.stageY;
+            owner.dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.SWATCH_CLICK, payload));
+        }
+
+        /**
+         * Executed when the main area of this item is being clicked. Prevents the
+         * corresponding event from being redispatched if the item was set to be
+         * invisible or locked.
+         */
+        private function _onItemMouseDown(event:Event):void {
+            if (!data.visible || data.locked) {
+                if (!selected) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                }
+            }
+        }
+
+        /**
+         * Executes when the selection status of the "visibility" checkbox of this item changes.
+         */
+        private function _onVisibilityChange(event:Event):void {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            data.visible = !envelopeVisibility.selected;
+            var payload:Object = {};
+            payload[Constants.DATA_ITEM] = data;
+            owner.dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.VISIBILITY_CHANGE, payload));
+        }
+
+        /**
+         * Executes when the selection status of the "lock" checkbox of this item changes.
+         */
+        private function _onLockChange(event:Event):void {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            if (data.type != 'outcome') {
+                data.locked = !envelopeLock.selected;
+                var payload:Object = {};
+                payload[Constants.DATA_ITEM] = data;
+                owner.dispatchEvent(new ParameterChangeEvent(ParameterChangeEvent.LOCK_CHANGE, payload));
+            }
+        }
+
+        /**
+         * Executed when this component is initialized. At this time, its sub-components are initialized, but
+         * not measured nor rendered.
+         */
+        protected function _onInitialize(event:FlexEvent):void {
+            addEventListener(MouseEvent.MOUSE_DOWN, _onItemMouseDown, false, int.MAX_VALUE);
+            itemName.addEventListener(MouseEvent.MOUSE_DOWN, _onItemMouseDown, false, int.MAX_VALUE);
+            envelopeVisibility.addEventListener(MouseEvent.MOUSE_DOWN, _onVisibilityChange, false, int.MAX_VALUE);
+            envelopeLock.addEventListener(MouseEvent.MOUSE_DOWN, _onLockChange, false, int.MAX_VALUE);
+        }
+        ]]>
+	</fx:Script>
+
+    <!-- Parameter name -->
+    <mx:Label id="itemName"
+              paddingTop="2"
+              color="{Colors.CHROME_TEXT_COLOR}"
+              color.selected="{Colors.CHROME_TEXT_SELECTED_COLOR}"
+              color.hovered="{Colors.CHROME_TEXT_COLOR_DARKER}"
+              disabledColor="{Colors.CHROME_TEXT_MUTED_COLOR}"
+              verticalCenter="0"
+              mouseChildren="false"
+              left="{data.listLeftGutter}"
+              right="{data.listRightGutter}"
+              fontStyle="{(data.type == 'outcome')? 'italic' : 'normal'}"
+              alpha="{(data.type == 'outcome')? OUTCOME_LABEL_ALPHA : (!data.visible || data.locked)? UNAVAILABLE_LABEL_ALPHA : 1}"
+              text="{(data.type == 'outcome')? (data.name as String).toLowerCase() : data.name}"/>
+
+    <!-- Envelope color -->
+    <s:Group id="envelopeColor" verticalCenter="0" top="{data.listTopGutter}" bottom="{data.listBottomGutter}"
+             width="{data.listCellWidth}" right="{data.listRightGutter - data.listCellWidth}"
+             useHandCursor="true" buttonMode="true" click="_onSwatchClick (event)" toolTip="Color for {data.name}">
+        <s:Rect top="0" bottom="0" right="0" left="0">
+            <s:stroke>
+                <mx:SolidColorStroke color="#ffffff" weight="{data.listSwatchBorder}"/>
+            </s:stroke>
+            <s:fill>
+                <mx:SolidColor color="{data.color}"/>
+            </s:fill>
+        </s:Rect>
+    </s:Group>
+
+    <!-- Envelope visibility -->
+    <s:ToggleButton id="envelopeVisibility"
+                    skinClass="{VisibilityToggleSkin}"
+                    skinClass.selected="{VisibilityToggleSkinSelected}"
+                    selected="{data.visible}"
+                    verticalCenter="0"
+                    top="{data.listTopGutter}"
+                    bottom="{data.listBottomGutter}"
+                    width="{data.listCellWidth}"
+                    right="{data.listRightGutter - data.listCellWidth * 2 - data.contentPadding}"
+                    change="_onVisibilityChange (event)"
+                    toolTip="{envelopeVisibility.selected? 'Hide «' + data.name : 'Show «' + data.name}»"
+                    useHandCursor="true"
+                    buttonMode="true"/>
+
+    <!-- Envelope lock -->
+    <s:ToggleButton id="envelopeLock"
+                    skinClass="{EditabilityToggleSkin}"
+                    skinClass.selected="{EditabilityToggleSkinSelected}"
+                    selected="{data.type == 'outcome' || data.locked}"
+                    enabled="{data.type != 'outcome'}"
+                    verticalCenter="0"
+                    top="{data.listTopGutter}"
+                    bottom="{data.listBottomGutter}"
+                    width="{data.listCellWidth}"
+                    right="{data.listRightGutter - data.listCellWidth * 3 - data.contentPadding * 2}"
+                    change="_onLockChange (event)"
+                    toolTip="{envelopeLock.selected? 'Unlock «' + data.name : 'Lock «' + data.name}»"
+                    useHandCursor="true"
+                    buttonMode="true"/>
+
+</s:ItemRenderer>
