@@ -1,0 +1,38 @@
+Envelope Menu
+-------------
+- Select all nodes (disabled if locked)
+- Add Node Here (disabled if locked)
+- Paste node(s) (disabled if locked)
+- Paste node(s) in place (disabled if locked)
+- Lock (disabled if locked)
+- Unlock (disabled if NOT locked)
+
+Selected Node(s) Menu
+---------------------
+Nodes cannot be selected if envelope is locked
+- Copy;
+- Delete;
+- Set to:
+	- 0%;
+	- 25%;
+	- 50%;
+	- 75%;
+	- 100%;
+- Level: (disabled if only one node is selected):
+	- ceil;
+	- floor;
+	- average;
+- Multiply:
+	- 0.25;
+	- 0.5;
+	- 0.75;
+	- 1.25;
+	- 1.5;
+	- 1.75;
+	- 2;
+- Rebuild slope: (disabled if only one node is selected):
+	- linear;
+	- ease in (disabled if less than three nodes are selected);
+	- ease out (disabled if less than three nodes are selected);
+	- ease in-out (disabled if less than four nodes are selected).
+

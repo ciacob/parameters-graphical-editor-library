@@ -1,0 +1,1 @@
+UI Component that allows one to program time evolving parameters using a grid and graphical envelopes.

@@ -1,0 +1,55 @@
+[FIXED] 1. Redrawing the editor in result to a new envelope being added makes it larger by a roughly 10-20 pixels on both axes;
+
+[FIXED] 2. Selecting an item in the list beneath the editor does not highlight the corresponding envelope; clicking the envelope proxy button in the list to the left of the editor does; also, selecting the envelope in the editor does highlight the item in the list underneath it;
+
+[FIXED] 3. closing the configuration window and reopening it results in an editor without labels (and slightly larger, as described at #1);
+
+[FIXED] 4. selecting an envelope via other means than from the list underneath the editor does select the corresponding list item, but does not bring it into view;
+
+[FIXED] 5. selecting and attempting to drag a node in the editor makes the editor freeze: no other node can be selected, and the selected node cannot be dragged; the node tooltip, if it was shown, never goes away.
+
+[FIXED] 6. Setting a (constant) value in the Parameters list and then thicking "Animate" has no effect on the line displayed in the chart. It displays as if the (constant) value wasn't altered.
+
+[FIXED] 7. "Node time" IS in fact changed on last and first nodes of a line chart, despite they being drawn at 100% and 0% respectivelly. The correct approach would be to prevent the node time from being changed AT ALL for these nodes.
+
+[FIXED] 8. The envelope editor tooltip displays some strange chars.
+
+[FIXED] 10. Dragging a slider in the left pane does nothing to the Preset manager, which means that no change is reported at all.
+
+[FIXED] 10.1. Activating a preset that implies the editor does not show it. It will show after closing and reopening the window.
+
+[FIXED] 11. Changing values does not modify the status of the "apply"/"reset" buttons, which means changes are not reported to the parent component (and will have no impact on the generated music).
+
+[FIXED] 10.3. Created a preset with "Heterogeneity" set at 45. Activating it does not set the field to 45, it remains at default value. Closing and reopening the window sets the field at 45, but the Preset manager does not show the name of the preset, it shows "None";
+
+[FIXED] 9. Merely touching a node in the envelope editor activates the Preset manager, which means that some sort of change is reported. There shouldn't be, as the node was merely selected;
+
+[NOT A BUG] 10.2. Not sure if a bug or Preset manager behavior: change setting "A" to arbitrary value, the Preset manager reports "None (custom settings)"; Change it back to original value, the Preset manager remains on "None (custom settings)";
+
+[FIXED] 16. The selection colors in the envelope editor's list do not match the colors used in other parts of MAIDENS.
+
+[FIXED] 17. The envelope editor's list background and border should match the envelope editor's or viceversa, but they need to look the same.
+
+[FIXED] 18. In the envelope editor's list, I can select a parameter whose envelope is hidden. This is very confusing. I should either not be able to select the list item, or the item should color in a much lighter shade of blue, to give a hint that this is "not really a selection". Addition: I extended this behavior to the locked envelopes as well, i.e., one is not able to select locked envelopes anymore.
+
+[FIXED, a] 19. [BUG] In the envelope editor's list, toggling a checkbox for another item than the selected one clears the current selection, but doesn't set the touched item as selected. This is confusing, especially because the "highlighted" envelope in the editor stays the same. It should either (a) leave the existing selection in place (preferably) or (b) select both the touched list item and its corresponding envelope.
+
+[FIXED] 12. Dynamic minimum and maximum window constraints do not work: the user should not be able to increase window's width while the editor is hidden, and should not be able to shrink the window less than the editor's preferred size when the editor is visible. None of these work.
+
+[FIXED] 13. Colons (":") in headers should go away;
+
+[FIXED] 13.1 Messages in the Presets Manager are still confusing, as are the links in the description text. The user should know (1) what's happening and (2) what can he do.
+
+[FIXED] 14. Icons in the left pane (Preset manager icons and the "i" icon for help) should be aligned to the existing icon guidelines of the application.
+
+
+15. Adding/removing items to/from the editor envelope list clears existing item's visibility/lock status. Should not.
+
+
+
+
+
+
+20. The color picker window uses a CFF Label for its Title, which renders using Times New Roman instead of MAIDENS.tff. That LAbel is probably inside of a Skin which can be altered/replaced.
+
+21. The (native) contextual menu that opens when right-clicking a node in the envelope editor is much offset to the left. And maybe it should be replaced with a Flex menu for consistency with the score editor.
